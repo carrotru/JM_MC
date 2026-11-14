@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{height:100%}body{margin:0;font:14px system-ui}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>聖誕戲劇投影</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: presenter window = live stage on the left, next-slide preview + cue + timer on the right, controls underneath; audience window = the stage alone. Single dark look: it is a projection booth. */
+:root{
+  color-scheme:dark;
+  --booth:#101417; --panel:#1a2024; --line:#2e383d; --ink:#e9e4d6; --dim:#97a09c;
+  --gold:#e0b65a; --pine:#2f7d6b; --warn:#d9694c;
+  --display:'Noto Serif TC','Songti TC','PMingLiU',serif;
+  --ui:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;
+}
+html,body{height:100%}
+body{background:var(--booth);color:var(--ink);font-family:var(--ui);font-size:15px;overflow:hidden}
+#app{height:100%;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;background:var(--booth);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.stagewrap{min-height:0;min-width:0;display:grid;place-items:center;container-type:size}
+.stage{position:relative;width:min(100cqw,calc(100cqh*16/9));aspect-ratio:16/9;max-width:100%;background:#000;overflow:hidden;border-radius:4px;cursor:pointer}
+.layer{position:absolute;inset:0;opacity:0;transition:opacity 1.4s ease}
+.layer.on{opacity:1}
+.layer svg{width:100%;height:100%;display:block;font-family:var(--display);font-weight:700}
+.tone-past{filter:sepia(.55) saturate(.8) contrast(.96) brightness(.97)}
+.tone-reveal{animation:reveal 6s 1.5s ease both}
+@keyframes reveal{from{filter:sepia(.55) saturate(.8) contrast(.96) brightness(.97)}to{filter:sepia(0) saturate(1) contrast(1) brightness(1)}}
+.shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom,transparent 58%,rgba(0,0,0,.34))}
+.grain{position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>")}
+.black{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .8s}
+.black.on{opacity:1}
+.toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);padding:8px 14px;border-radius:6px;font-size:14px;max-width:90%}
+
+.main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,30%);gap:12px}
+.side{min-width:0;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;min-width:0}
+.lab{font-size:12px;color:var(--dim);letter-spacing:.08em}
+.lab b{color:var(--gold);font-weight:700;font-size:14px;letter-spacing:0}
+.pvbox{position:relative;aspect-ratio:16/9;max-width:100%;background:#000;border-radius:4px;overflow:hidden;margin-top:6px}
+.pvbox .layer{opacity:1;transition:none}
+.pvbox *{animation-play-state:paused!important}
+.cue{font-family:var(--display);font-size:20px;line-height:1.5;text-wrap:balance;margin-top:4px}
+#hNow{margin-top:4px;line-height:1.5}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
+button:hover{border-color:var(--dim)}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button.big{background:var(--pine);border-color:var(--pine);font-weight:700;padding:8px 18px}
+button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.count{font-variant-numeric:tabular-nums;color:var(--dim);margin-inline:4px}
+.sp{flex:1}
+.keys{font-size:12px;color:var(--dim)}
+.bar{display:flex;flex-direction:column;gap:8px}
+@media (max-width:820px){.main{grid-template-columns:1fr;grid-template-rows:auto auto;overflow:auto}.stagewrap{container-type:normal;display:block}.stage{width:100%}}
+
+/* audience window: nothing but the picture */
+#app.aud{padding:0;gap:0}
+#app.aud .side,#app.aud .bar{display:none}
+#app.aud .main{grid-template-columns:1fr;gap:0}
+#app.aud .stagewrap{container-type:size;display:grid}
+#app.aud .stage{width:min(100cqw,calc(100cqh*16/9));border-radius:0;cursor:none}
+
+.sheet{position:absolute;inset:0;background:rgba(10,13,15,.96);overflow:auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 30px max(16px,env(safe-area-inset-left,0px));z-index:5}
+.sheet h2{font-family:var(--display);font-size:24px;margin:0 0 4px}
+.sheet p{color:var(--dim);margin:0 0 14px}
+.sheet h3{font-family:var(--display);color:var(--gold);font-size:18px;margin:20px 0 6px}
+.sheet .row{display:grid;grid-template-columns:2.4em minmax(0,11em) minmax(0,1fr);gap:10px;width:100%;text-align:left;border:0;border-top:1px solid var(--line);border-radius:0;background:none;padding:8px 4px}
+.sheet .row:hover{background:var(--panel)}
+.sheet .row.cur{background:var(--panel);color:var(--gold)}
+.sheet .row span:first-child{color:var(--dim);font-variant-numeric:tabular-nums}
+.sheet .close{position:sticky;top:0;float:right}
+@media (max-width:640px){.hint{grid-template-columns:1fr}.sheet .row{grid-template-columns:2.2em minmax(0,1fr)}.sheet .row span:last-child{grid-column:2}}
+
+/* ---------- scene motion ---------- */
+.steam{animation:rise 5s ease-in infinite;opacity:0}
+@keyframes rise{0%{opacity:0;transform:translateY(0) scale(.8)}18%{opacity:.75}100%{opacity:0;transform:translateY(-170px) scale(1.7)}}
+.tw{animation:tw 3s ease-in-out infinite alternate}
+@keyframes tw{from{opacity:.2}to{opacity:1}}
+.swing{animation:swing 3.2s ease-in-out infinite alternate}
+@keyframes swing{from{transform:rotate(-4deg)}to{transform:rotate(4deg)}}
+.sway{animation:sway 5s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 0}
+@keyframes sway{from{transform:skewX(-2deg)}to{transform:skewX(2.5deg)}}
+.rustle{animation:rustle 6s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes rustle{from{transform:rotate(-1.2deg)}to{transform:rotate(1.4deg)}}
+.pulse{animation:pulse 2.6s ease-in-out infinite alternate}
+.pulseS{animation:pulse 7s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.55}to{opacity:1}}
+.scroll{animation:scroll 20s linear infinite}
+@keyframes scroll{to{transform:translateX(-1600px)}}
+.scrollR{animation:scrollR 20s linear infinite}
+@keyframes scrollR{from{transform:translateX(-1600px)}to{transform:translateX(0)}}
+.drift{animation:drift 120s linear infinite}
+@keyframes drift{from{transform:translateX(-300px)}to{transform:translateX(1900px)}}
+.mote{animation:mote 9s linear infinite;opacity:0}
+@keyframes mote{0%{opacity:0;transform:translate(0,0)}25%{opacity:.9}100%{opacity:0;transform:translate(40px,-190px)}}
+.snow{animation:snow 12s linear infinite}
+@keyframes snow{to{transform:translate(var(--dx,40px),960px)}}
+.leaf{animation:leaf 11s linear infinite;transform-box:fill-box;transform-origin:center;opacity:0}
+@keyframes leaf{0%{opacity:0;transform:translate(0,0) rotate(0)}10%{opacity:1}90%{opacity:1}100%{opacity:0;transform:translate(var(--dx,150px),560px) rotate(340deg)}}
+.flame{animation:flame .5s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes flame{from{transform:scaleY(.75)}to{transform:scaleY(1.2)}}
+.bob{animation:bob .9s ease-in-out infinite alternate}
+@keyframes bob{from{transform:translateY(-2px)}to{transform:translateY(3px)}}
+.bounce{animation:bounce 1.1s cubic-bezier(.3,0,.7,1) infinite alternate}
+@keyframes bounce{from{transform:translateY(-60px)}to{transform:translateY(0)}}
+.sweep{animation:sweep 10s ease-in-out infinite;mix-blend-mode:screen}
+@keyframes sweep{0%,35%{transform:translateX(0)}75%,100%{transform:translateX(2700px)}}
+.moth{animation:moth 4s linear infinite}
+@keyframes moth{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.tlr{animation:tlr 8s steps(1) infinite}.tlg{animation:tlg 8s steps(1) infinite}
+@keyframes tlr{0%,49%{opacity:1}50%,100%{opacity:.15}}
+@keyframes tlg{0%,49%{opacity:.15}50%,100%{opacity:1}}
+.mh-slow{animation:mhs 90s linear both}.mh-fast{animation:mhf 16s ease-in both}.mh-stop{transform:rotate(90deg)}
+@keyframes mhs{from{transform:rotate(0)}to{transform:rotate(30deg)}}
+@keyframes mhf{from{transform:rotate(30deg)}to{transform:rotate(90deg)}}
+.sh-slow{animation:tick 60s steps(60) infinite}.sh-fast{animation:tick 5s linear infinite}
+@keyframes tick{to{transform:rotate(360deg)}}
+.pd-slow{animation:swing 2s ease-in-out infinite alternate}.pd-fast{animation:swing .6s ease-in-out infinite alternate}
+.dawn{animation:dawn 5s 1s ease both}
+@keyframes dawn{from{opacity:0}to{opacity:1}}
+.nomotion .stage *{animation-play-state:paused!important}
+.nofade .layer{transition:none}
+</style>
+
+<div id="app">
+  <div class="main">
+    <div class="stagewrap">
+      <div class="stage" id="stage" aria-label="投影畫面">
+        <div class="layer" id="LA"></div><div class="layer" id="LB"></div>
+        <div class="grain"></div><div class="shade"></div><div class="black" id="black"></div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+    </div>
+    <aside class="side" aria-label="主控台">
+      <div class="box"><div class="lab">下一張　<b id="hNext"></b></div><div class="pvbox"><div class="layer" id="PV"></div></div></div>
+      <div class="box" aria-live="polite"><div class="lab">換頁時機</div><div class="cue" id="hCue"></div></div>
+      <div class="box"><div class="lab">現在投影</div><div id="hNow"></div></div>
+    </aside>
+  </div>
+  <div class="bar">
+    <div class="ctrl">
+      <button id="bPrev" aria-label="上一張">◀ 上一張</button>
+      <button id="bNext" class="big" aria-label="下一張">下一張 ▶</button>
+      <span class="count" id="count"></span>
+      <button data-act="1">1 建堂</button><button data-act="2">2 奉獻</button><button data-act="3">3 愛餐</button><button data-act="4">4 團契</button>
+      <span class="sp"></span>
+      <button id="bList">換頁表</button>
+      <button id="bFade" aria-pressed="true">淡入淡出</button>
+      <button id="bMotion" aria-pressed="true">動態</button>
+      <button id="bBlack" aria-pressed="false">黑幕</button>
+      <button id="bShow" class="big">全螢幕放映</button>
+    </div>
+    <div class="keys">← → 或空白鍵換頁（簡報筆也可以）　F5 或 F 開始放映　Esc 結束放映　B 黑幕　T 淡入淡出</div>
+  </div>
+  <div class="sheet" id="sheet" hidden></div>
+</div>
+
+<script>
+const W=1600,H=900;
+const rnd=seed=>{let s=seed%2147483647;if(s<=0)s+=2147483646;return()=>((s=s*16807%2147483647)-1)/2147483646};
+const r=(x,y,w,h,f,e='')=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" ${e}/>`;
+const c=(x,y,rr,f,e='')=>`<circle cx="${x}" cy="${y}" r="${rr}" fill="${f}" ${e}/>`;
+const el=(x,y,rx,ry,f,e='')=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${f}" ${e}/>`;
+const p=(d,f,e='')=>`<path d="${d}" fill="${f}" ${e}/>`;
+const ln=(d,s,w,e='')=>`<path d="${d}" fill="none" stroke="${s}" stroke-width="${w}" stroke-linecap="round" ${e}/>`;
+const t=(x,y,s,txt,f,e='')=>`<text x="${x}" y="${y}" font-size="${s}" fill="${f}" text-anchor="middle" ${e}>${txt}</text>`;
+const vt=(x,y,s,str,f,e='')=>[...str].map((ch,i)=>t(x,y+i*s*1.1,s,ch,f,e)).join('');
+const lg=(id,stops,v=true)=>`<linearGradient id="${id}" x1="0" y1="0" x2="${v?0:1}" y2="${v?1:0}">${stops.map(([o,col,op])=>`<stop offset="${o}" stop-color="${col}"${op!=null?` stop-opacity="${op}"`:''}/>`).join('')}</linearGradient>`;
+const rg=(id,stops)=>`<radialGradient id="${id}">${stops.map(([o,col,op])=>`<stop offset="${o}" stop-color="${col}"${op!=null?` stop-opacity="${op}"`:''}/>`).join('')}</radialGradient>`;
+const svg=(u,defs,body)=>`<svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"><defs><filter id="${u}b" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="5"/></filter><filter id="${u}g" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="22"/></filter>${defs}</defs>${body}</svg>`;
+const steam=(u,x,y,n=3,spread=36,col='#fff',sc=1,dur=5)=>Array.from({length:n},(_,i)=>`<g transform="translate(${x+(i-(n-1)/2)*spread} ${y}) scale(${sc})"><path class="steam" style="animation-delay:${(-i*dur/n-.3).toFixed(2)}s;animation-duration:${dur}s" d="M0 0q-18 -26 0 -52q18 -26 0 -52q-14 -22 0 -44" stroke="${col}" stroke-width="13" stroke-linecap="round" fill="none" filter="url(#${u}b)"/></g>`).join('');
+const stars=(seed,n,ymax=380)=>{const R=rnd(seed);return Array.from({length:n},()=>c((R()*W)|0,(R()*ymax)|0,(1+R()*2).toFixed(1),'#fff',`class="tw" style="animation-delay:${(-R()*3).toFixed(1)}s"`)).join('')};
+const snow=(seed,n)=>{const R=rnd(seed);return Array.from({length:n},()=>{const d=8+R()*10;return c((R()*W)|0,-20,(2+R()*4).toFixed(1),'#fff',`class="snow" opacity="${(.4+R()*.5).toFixed(2)}" style="--dx:${((R()-.5)*160)|0}px;animation-duration:${d.toFixed(1)}s;animation-delay:${(-R()*d).toFixed(1)}s"`)}).join('')};
+const motes=(seed,n,x0,y0,w,h,col='#fff6d0')=>{const R=rnd(seed);return Array.from({length:n},()=>c((x0+R()*w)|0,(y0+R()*h)|0,(1.5+R()*2.5).toFixed(1),col,`class="mote" style="animation-delay:${(-R()*9).toFixed(1)}s"`)).join('')};
+const cloud=(y,s,dur,delay)=>`<g class="drift" style="animation-duration:${dur}s;animation-delay:${-delay}s"><g transform="translate(0 ${y}) scale(${s})" fill="#fff" opacity=".85"><ellipse cx="0" cy="0" rx="90" ry="34"/><ellipse cx="-50" cy="-22" rx="50" ry="32"/><ellipse cx="30" cy="-34" rx="60" ry="40"/></g></g>`;
+const tree=(x,y,s,trunk,leaf,leaf2)=>`<g transform="translate(${x} ${y}) scale(${s})">${r(-18,-10,36,260,trunk)}<g class="rustle">${c(0,-90,120,leaf)}${c(-95,-30,80,leaf2)}${c(95,-40,85,leaf)}${c(-40,-170,80,leaf2)}${c(55,-160,75,leaf)}</g></g>`;
+const glow=(u,x,y,rr,col,cls='pulse',op=.8)=>c(x,y,rr,col,`filter="url(#${u}g)" opacity="${op}" class="${cls}"`);
+
+/* ---------- title card ---------- */
+function card(u,{k='',ttl,sub=''}){
+  return svg(u,lg(u+'bg',[[0,'#0d2b2b'],[1,'#07161d']]),
+   r(0,0,W,H,`url(#${u}bg)`)+snow(21,70)+
+   `<rect x="70" y="70" width="1460" height="760" fill="none" stroke="#c9a65a" stroke-width="2"/><rect x="86" y="86" width="1428" height="728" fill="none" stroke="#c9a65a" stroke-width="1" opacity=".5"/>`+
+   t(800,220,34,'景美教會聖誕晚會','#c9a65a','letter-spacing="14" font-weight="500"')+
+   p('M800 262l9 24 26 2-20 16 7 25-22-14-22 14 7-25-20-16 26-2z','#e0b65a','class="tw"')+
+   (k?t(800,400,46,k,'#d9c9a0','letter-spacing="10" font-weight="500"'):'')+
+   t(800,k?560:520,ttl.length>6?120:150,ttl,'#f3e3b8','font-weight="900" letter-spacing="8"')+
+   ln('M560 640H1040','#c9a65a',2)+
+   t(800,712,42,sub,'#d9c9a0','font-weight="500" letter-spacing="4"'));
+}
+
+const brick=id=>`<pattern id="${id}" width="72" height="36" patternUnits="userSpaceOnUse"><rect width="72" height="36" fill="#d9b5a2"/><rect x="1" y="1" width="34" height="16" fill="#b4533e"/><rect x="37" y="1" width="34" height="16" fill="#be5c45"/><rect x="-17" y="19" width="34" height="16" fill="#a94a37"/><rect x="19" y="19" width="34" height="16" fill="#b9573f"/><rect x="55" y="19" width="34" height="16" fill="#b04e3a"/></pattern><pattern id="${id}s" width="20" height="64" patternUnits="userSpaceOnUse"><rect width="20" height="64" fill="#d9b5a2"/><rect x="1" y="1" width="18" height="62" fill="#b9573f"/></pattern>`;
+const shadow=id=>lg(id,[[0,'#000',.38],[1,'#000',0]]);
+const scooter=(x,y,col,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})">${c(0,0,17,'#1c1c1c')}${c(0,0,7,'#8a8f94')}${c(78,0,17,'#1c1c1c')}${c(78,0,7,'#8a8f94')}${p('M-8 -8Q-6 -34 22 -34H48L60 -10H14Q4 -10 -8 -8Z',col)}${p('M56 -10L70 -52h9L72 -8Z',col)}${r(8,-44,40,12,'#222','rx="6"')}${ln('M72 -54L86 -60','#222',5)}${c(80,-46,5,'#f6e7a8')}</g>`;
+const bike=(x,y,s=1,bag='')=>`<g transform="translate(${x} ${y}) scale(${s})"><circle cx="0" cy="0" r="60" fill="none" stroke="#222" stroke-width="6"/><circle cx="200" cy="0" r="60" fill="none" stroke="#222" stroke-width="6"/>${ln('M0 0L72 -84H160L200 0M72 -84L104 0H0M160 -84L104 0M160 -84L152 -118H182M72 -84L64 -112','#3a4a52',7)}${r(40,-122,56,12,'#222','rx="6"')}${bag?r(-48,-62,70,58,bag,'rx="8"')+r(-44,-70,62,12,'#256e4c','rx="5"'):''}</g>`;
+
+const ambD=u=>shadow(u+'sh')+rg(u+'vg',[[.55,'#000',0],[1,'#000',.3]])+lg(u+'fl',[[0,'#000',0],[1,'#000',.22]]);
+const amb=u=>r(0,0,W,H,`url(#${u}vg)`);
+const sh=(u,x,y,rx,ry,o=.3)=>el(x,y,rx,ry,'#000',`opacity="${o}" filter="url(#${u}b)"`);
+
+/* ---------- church exterior (from the reference photo: red brick, cross, five pointed windows) ---------- */
+function exterior(u,{dusk=true}={}){
+  const D=dusk,X=[480,672,864,1056,1248],w=124,yb=566,ys=432,yt=338,R=150;
+  const wd=x=>`M${x} ${yb}V${ys}A${R} ${R} 0 0 1 ${x+w/2} ${yt}A${R} ${R} 0 0 1 ${x+w} ${ys}V${yb}Z`;
+  const glass=(x,lit)=>p(wd(x),lit?`url(#${u}wg)`:'#1b2829')+ln(`M${x+w/2} ${yt+8}V${yb}M${x} ${ys+34}H${x+w}M${x} ${ys}Q${x+w/2} ${ys-34} ${x+w} ${ys}`,lit?'#7a4a22':'#3d4c4c',5)+(lit?'':p(`M${x+12} ${yb-16}L${x+54} ${ys+6}h22L${x+46} ${yb-16}z`,'#fff','opacity=".07"'));
+  const letters=(col,sh)=>(sh?t(394,174,34,'台灣基督','#000','letter-spacing="12" opacity=".3" transform="translate(4 4)"')+t(394,226,34,'長老教會','#000','letter-spacing="12" opacity=".3" transform="translate(4 4)"')+[650,870,1090,1310].map((x,i)=>t(x+5,247,104,'景美教會'[i],'#000','opacity=".3"')).join(''):'')+t(394,174,34,'台灣基督',col,'letter-spacing="12"')+t(394,226,34,'長老教會',col,'letter-spacing="12"')+[650,870,1090,1310].map((x,i)=>t(x,242,104,'景美教會'[i],col)).join('');
+  const cross=(col,sh)=>(sh?r(214,116,26,176,'#000','opacity=".3"')+r(176,158,102,24,'#000','opacity=".3"'):'')+r(208,110,26,176,col)+r(170,152,102,24,col);
+  const pot=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})">${p('M-22 0H22L16 40H-16Z','#b5533c')}${r(-26,-6,52,10,'#c9634a','rx="3"')}<g class="rustle">${el(0,-40,26,40,'#2f6b3f')}${el(-14,-30,16,30,'#3f8a4f')}${el(14,-26,14,28,'#377a45')}</g></g>`;
+  let b=r(0,0,W,H,'#c4bfb0')+r(0,0,W,84,`url(#${u}br)`)+r(0,0,W,84,`url(#${u}sh)`,'opacity=".3"')+[520,760,1000].map(x=>r(x-8,0,186,62,'#e4e2da')+r(x,0,80,54,'#5f7a6c')+r(x+90,0,80,54,'#55706a')).join('')+r(60,34,400,8,'#d9d3c6')+Array.from({length:17},(_,i)=>ln(`M${70+i*24} 42V78`,'#d9d3c6',4)).join('')+r(1240,14,96,60,'#d3d6d0','rx="4"')+c(1288,44,22,'#b9bcc0')+r(0,74,W,10,'#9c4a37')
+   +r(40,80,1520,252,`url(#${u}br)`)+r(40,80,1520,40,`url(#${u}brs)`)+r(40,80,1520,120,`url(#${u}sh)`,'opacity=".35"')
+   +cross('#7a6a5a',1)+letters('#4a4038',1)
+   +r(20,330,1560,24,'#9c4a37')+r(20,354,1560,30,`url(#${u}brs)`)+r(40,384,1520,330,`url(#${u}br)`)+r(20,384,1560,70,`url(#${u}sh)`)
+   +[440,632,824,1016,1208,1400].map(x=>r(x,384,24,330,`url(#${u}brs)`,'opacity=".55"')).join('')
+   +r(138,396,276,318,'#161616')+r(152,410,120,60,'#0f1718')+r(280,410,120,60,'#0f1718')+r(152,480,120,224,'#101a1b')+r(280,480,120,224,'#101a1b')+ln('M276 410V706','#2b2b2b',6)+r(258,560,8,40,'#b9b29b')+r(286,560,8,40,'#b9b29b')+r(326,494,40,54,'#f1ede0')
+   +X.map(x=>`<path d="${wd(x)}" fill="none" stroke="#c97a62" stroke-width="28" stroke-dasharray="15 3"/>`+glass(x,false)+r(x-18,yb,w+36,16,'#cfa894')).join('')
+   +r(1548,0,52,790,'#1b1c20')+r(1566,0,34,420,'#dedcd4')+r(1560,420,40,14,'#b9b5a8')+r(1392,0,160,790,`url(#${u}br)`)+r(1392,0,160,790,`url(#${u}cy)`)+r(1392,330,160,24,'#9c4a37')+r(1392,330,160,24,`url(#${u}cy)`)
+   +r(1462,690,8,90,'#8d8f8c')+r(1540,690,8,90,'#8d8f8c')+r(1450,560,110,136,'#f4f2ea','stroke="#8d8f8c" stroke-width="5"')+r(1450,548,110,16,'#8d8f8c')+[0,1,2,3].map(i=>r(1460+(i%2)*50,574+((i/2)|0)*58,40,48,i%3?'#fbf7ea':'#f6d98a','stroke="#c9c5b8" stroke-width="1"')).join('')
+   +r(110,712,330,24,'#dcd6c8')+r(90,736,370,26,'#cfc9bb')+r(70,762,410,28,'#c2bcad')+r(110,712,330,6,'#f0ebde')
+   +r(446,744,950,62,`url(#${u}br)`)+r(438,732,966,16,'#cfa894')+r(446,790,950,16,`url(#${u}sh)`,'opacity=".5" transform="rotate(180 921 798)"')
+   +`<g class="rustle">${Array.from({length:26},(_,i)=>el(470+i*36,706+(i%3)*6,34,34-(i%2)*6,['#3f8a4f','#4c9a58','#357a45'][i%3])).join('')}${Array.from({length:14},(_,i)=>el(490+i*66,692,20,14,'#6bb56c','opacity=".7"')).join('')}</g>`
+   +pot(60,722)+pot(104,736,.8)+pot(428,740,.9)+pot(1420,736,.9)+pot(1580,740,.9)
+   +r(0,790,W,110,`url(#${u}rd)`)+r(0,786,W,8,'#a9a596')+ln('M0 866H1600','#e9e2c8',5,'stroke-dasharray="120 80" opacity=".5"')+sh(u,1330,858,200,12,.4)+scooter(1190,846,'#e9e6da',1.5)+scooter(1350,848,'#3f6fb0',1.5);
+  if(D)b+=r(0,0,W,H,'#141a44','opacity=".6"')
+   +r(152,410,120,60,'#f3c56b','opacity=".8"')+r(280,410,120,60,'#f3c56b','opacity=".8"')+r(152,480,120,224,`url(#${u}wg)`,'opacity=".85"')+r(280,480,120,224,`url(#${u}wg)`,'opacity=".85"')+ln('M276 410V706','#3a2a1a',6)
+   +p('M138 714H414L520 900H60Z','#f6c765',`opacity=".28" filter="url(#${u}b)" class="pulse"`)
+   +X.map(x=>glass(x,true)+el(x+w/2,700,90,40,'#f6c765',`opacity=".18" filter="url(#${u}b)"`)).join('')
+   +[520,760,980,1200,1420].map(x=>p(`M${x-90} 330L${x} 90L${x+90} 330Z`,'#ffe2a0',`opacity=".2" filter="url(#${u}g)" class="pulseS"`)).join('')+p('M150 330L221 96L292 330Z','#ffe2a0',`opacity=".3" filter="url(#${u}g)" class="pulseS"`)
+   +cross('#fff3d0')+letters('#ffe9b0')
+   +Array.from({length:38},(_,i)=>c(40+i*41,342+(i%2)*7,6,['#e0b65a','#e2574a','#7fc9a8','#f4f0e4'][i%4],`class="tw" style="animation-delay:${(-i*.37).toFixed(2)}s"`)).join('')+ln('M30 338Q800 352 1570 338','#2b2b2b',2);
+  const tc=D?['#0d1512','#132a22','#17332a']:['#5a4028','#3f7f55','#4f9a66'];
+  b+=`<g class="rustle">${c(-20,60,170,tc[1])}${c(110,-10,120,tc[2])}${c(-40,220,110,tc[2])}</g><g class="rustle" style="animation-delay:-3s">${c(1680,-30,130,tc[1])}</g>`;
+  return svg(u,brick(u+'br')+shadow(u+'sh')+lg(u+'cy',[[0,'#000',.4],[.3,'#000',0],[.55,'#fff',.1],[1,'#000',.55]],false)+lg(u+'wg',[[0,'#ffe9a8'],[1,'#f0a94e']])+lg(u+'rd',D?[[0,'#2a2b33'],[1,'#17181e']]:[[0,'#6a6c6e'],[1,'#505255']]),b);
+}
+
+/* ---------- breakfast shop (street-corner shop under a canvas awning) ---------- */
+function breakfast(u,{night=false}={}){
+  const N=night,items=['豆漿','燒餅','油條','包子','饅頭','蛋餅'];
+  const steamer=(x,y,n)=>Array.from({length:n},(_,i)=>r(x-105,y-i*40,210,38,`url(#${u}bm)`,'rx="9" stroke="#8a6534" stroke-width="3"')+ln(`M${x-105} ${y-i*40+19}H${x+105}`,'#a27a3c',3)).join('')+p(`M${x-100} ${y-(n-1)*40}Q${x} ${y-(n-1)*40-54} ${x+100} ${y-(n-1)*40}Z`,'#e6c283','stroke="#8a6534" stroke-width="3"')+c(x,y-(n-1)*40-29,8,'#8a6534');
+  const potS=(x,y,w,h)=>r(x,y,w,h,`url(#${u}st)`,'rx="10"')+el(x+w/2,y,w/2,13,'#eef1f2')+el(x+w/2,y+2,w/2-10,8,'#f7f1dc')+r(x-16,y+24,20,12,'#8a8f94','rx="5"')+r(x+w-4,y+24,20,12,'#8a8f94','rx="5"');
+  const wire=(y,sag)=>ln(`M-20 ${y}Q800 ${y+sag} 1620 ${y-20}`,'#1f1f1f',3);
+  let b=r(0,0,W,H,`url(#${u}sky)`)
+   +r(0,30,W,280,N?'#59566a':'#b9b3a4')+[150,470,1320].map((x,i)=>r(x,40,60+i*20,260,'#000','opacity=".06"')).join('')+r(0,30,W,14,N?'#44415a':'#9c9788')
+   +r(130,70,300,180,'#4c5a5c')+Array.from({length:9},(_,i)=>ln(`M${146+i*34} 70V250`,'#d3d0c4',4)).join('')+ln('M130 130H430M130 190H430','#d3d0c4',4)+r(120,250,320,12,'#8f8a7c')+r(330,262,90,50,'#c9cdc8')+r(338,270,74,10,'#8d918c')
+   +r(520,58,770,196,'#000','opacity=".25" transform="translate(8 8)"')+r(520,58,770,196,'#f3ead2','stroke="#b3362b" stroke-width="7"')+t(905,206,112,'豆漿 燒餅 油條','#b3362b')+t(604,104,34,'早　點','#33291f','letter-spacing="4"')+r(530,68,750,176,`url(#${u}sh)`,'opacity=".12"')
+   +r(1396,24,120,300,'#fbf7ea','stroke="#33291f" stroke-width="4"')+r(1396,24,120,40,'#b3362b')+vt(1456,116,50,'包子饅頭','#b3362b')
+   +wire(64,60)+wire(92,44)+wire(140,70)
+   +p('M110 300H1570L1600 404H80Z',`url(#${u}aw)`)+p('M110 300H1570L1600 404H80Z',`url(#${u}sh)`,'opacity=".25"')+`<g class="sway">${Array.from({length:19},(_,i)=>p(`M${80+i*80} 404h80v30q-40 26 -80 0z`,i%2?'#2f8a82':'#f1eee2')).join('')}</g>`
+   +r(130,430,1440,400,N?'#1d1a24':'#3b332a')+r(190,446,1300,210,N?'#4a4458':'#e6d7b2')+r(190,446,1300,80,`url(#${u}sh)`,'opacity=".6"')
+   +c(1343,150,46,'#6a482c')+c(1343,150,39,'#fbf4dd')+ln('M1343 150L1331 172','#33291f',6)+ln('M1343 150L1327 122','#33291f',4)
+   +items.map((s,i)=>r(800+i*98,470,78,180,'#c8372d')+vt(839+i*98,530,42,s,'#fbe7a8')).join('')
+   +r(230,470,300,170,'#6a5a48')+[0,1,2].map(i=>r(240,480+i*54,280,8,'#4a3c2c')+Array.from({length:6},(_,k)=>r(250+k*44,452+i*54+6,30,26,['#c9ced2','#e6c283','#c8453a'][(i+k)%3],'rx="4"')).join('')).join('')
+   +r(150,636,1300,44,'#dfe3e5')+r(150,636,1300,8,'#f4f6f6')+r(150,680,1300,150,`url(#${u}st)`)+Array.from({length:6},(_,i)=>ln(`M${366+i*216} 680V830`,'#8a9096',3)).join('')+r(150,680,1300,30,`url(#${u}sh)`,'opacity=".5"')
+   +r(1450,560,110,270,'#3b332a')+r(1462,640,96,90,'#c69a5d','stroke="#8a6534" stroke-width="3"')+r(1470,730,96,100,'#b98a4c','stroke="#8a6534" stroke-width="3"')+r(1474,560,70,80,'#d9742b','rx="6" opacity=".9"')
+   +r(46,0,36,900,N?'#55575c':'#8d8f8c')+r(46,0,12,900,'#000','opacity=".15"')+Array.from({length:5},(_,i)=>p(`M46 ${560+i*44}l36 -22v22l-36 22z`,i%2?'#1c1c1c':'#e2b93b')).join('')+r(84,330,60,150,'#2f8a5f')+vt(114,372,30,'景美街','#fff')
+   +r(0,830,W,70,N?'#1b1c23':'#5a5d60')+Array.from({length:6},(_,i)=>p(`M${900+i*120} 850h70l-20 50h-70z`,'#e9e6da','opacity=".7"')).join('');
+  if(N)b+=r(130,430,1440,206,'#7c8088')+Array.from({length:10},(_,i)=>ln(`M130 ${440+i*20}H1570`,'#62666e',3)).join('')+r(130,628,1440,12,'#55595f')
+   +[420,540,660,780,900].map(x=>el(x,628,46,22,'#fbf7ea')+el(x-10,622,20,8,'#fff','opacity=".7"')).join('')+r(960,612,130,16,'#b98f4c','rx="8"')+el(1140,634,70,8,'#fff','opacity=".5"')
+   +steamer(280,596,2)+steam(u,280,516,2,50,'#fff',1,7)
+   +r(0,0,W,H,'#070b22','opacity=".55"')+ln('M760 430V500','#111',4)+c(760,516,18,'#fff3c4')+glow(u,760,524,90,'#ffd98a','pulse',.4)+el(700,640,330,60,'#ffd98a',`opacity=".16" filter="url(#${u}g)"`)
+   +`<g class="moth" style="transform-origin:760px 516px">${c(820,500,4,'#f4f0e4')}</g><g class="moth" style="transform-origin:760px 516px;animation-duration:2.7s;animation-direction:reverse">${c(720,550,3,'#f4f0e4')}</g>`;
+  else b+=steamer(300,596,4)+steam(u,300,420,4,48,'#fff',1.3)+steamer(540,596,3)+steam(u,540,460,3,48,'#fff',1.1,6)
+   +potS(700,470,150,170)+ln('M800 470L860 380','#8a8f94',8)+steam(u,775,452,3,40,'#fff',1,6)+potS(880,520,110,120)+steam(u,935,504,2,34,'#fff',.8,7)
+   +r(1040,600,280,40,'#3d3d3d','rx="6"')+[1090,1140,1190,1240,1280].map((x,i)=>p(`M${x} 604q-9 -14 0 -26q9 12 0 26z`,'#5aa9e6',`class="flame" style="animation-delay:${-i*.13}s"`)).join('')
+   +p('M1050 540Q1180 660 1310 540Z','#262626')+el(1180,542,130,26,'#3a3a3a')+el(1180,543,116,20,'#e0a83a')+r(1110,530,130,20,'#d98f2b','rx="10" transform="rotate(-6 1175 540)"')+r(1150,542,116,18,'#e6a640','rx="9" transform="rotate(5 1208 551)"')
+   +[1100,1150,1220,1260].map((x,i)=>c(x,546,5,'#f6d98a',`class="tw" style="animation-duration:.${5+i}s"`)).join('')+steam(u,1180,520,3,60,'#fff',.9,4)
+   +[1350,1384,1418].map(x=>el(x,628,34,11,'#e6c283')+el(x,618,34,11,'#d9a85c')).join('')
+   +[520,1080].map(x=>ln(`M${x} 430V490`,'#111',4)+c(x,504,16,'#fff3c4')+glow(u,x,504,70,'#ffe9a8','pulse',.55)).join('')
+   +r(0,0,W,H,`url(#${u}dw)`,'class="dawn" style="mix-blend-mode:soft-light"');
+  return svg(u,lg(u+'sky',N?[[0,'#0a0f26'],[1,'#1b2145']]:[[0,'#5d6aa8'],[.5,'#e3a7a0'],[1,'#f7c98a']])+shadow(u+'sh')+lg(u+'st',[[0,'#c9ced2'],[.5,'#e8ecee'],[1,'#a9b0b5']],false)+lg(u+'bm',[[0,'#e2bb76'],[1,'#c99b55']])+lg(u+'dw',[[0,'#ffd98a',.5],[1,'#ffd98a',0]])
+    +`<pattern id="${u}aw" width="160" height="20" patternUnits="userSpaceOnUse"><rect width="160" height="20" fill="#f1eee2"/><rect width="80" height="20" fill="#2f8a82"/></pattern>`,b);
+}
+
+/* ---------- post office (ground-floor office under an arcade) ---------- */
+function post(u){
+  const mb=(x,col,lab)=>r(x+26,690,14,150,'#4a4d50')+r(x,596,66,104,col,'rx="10"')+p(`M${x-4} 604Q${x+33} 566 ${x+70} 604Z`,col)+r(x+10,622,46,8,'#111','rx="4"')+r(x+12,642,42,26,'#fff','rx="3"')+t(x+33,662,20,lab,col)+r(x,596,66,104,`url(#${u}sh)`,'opacity=".2"')+el(x+33,842,40,8,'#000','opacity=".25"');
+  const parcel=(x,y,w,h)=>r(x,y,w,h,'#c69a5d','stroke="#8a6534" stroke-width="3"')+ln(`M${x+w/2} ${y}V${y+h}M${x} ${y+h/2}H${x+w}`,'#7a5a30',3);
+  const pillar=(x,w)=>r(x,356,w,380,`url(#${u}gr)`)+r(x,356,w,380,`url(#${u}sv)`,'opacity=".5"');
+  return svg(u,shadow(u+'sh')+lg(u+'sv',[[0,'#000',.5],[.4,'#000',0],[1,'#000',.4]],false)+lg(u+'gs',[[0,'#2fa35c'],[1,'#7fd08a']],false)
+    +`<pattern id="${u}tl" width="26" height="26" patternUnits="userSpaceOnUse"><rect width="26" height="26" fill="#6f9a80"/><rect x="1" y="1" width="24" height="24" fill="#8fb89c"/></pattern><pattern id="${u}gr" width="40" height="40" patternUnits="userSpaceOnUse"><rect width="40" height="40" fill="#34383d"/><circle cx="6" cy="8" r="2" fill="#6b7078"/><circle cx="24" cy="14" r="1.6" fill="#8a9098"/><circle cx="14" cy="28" r="2" fill="#565b62"/><circle cx="34" cy="32" r="1.5" fill="#7a8088"/><circle cx="30" cy="4" r="1.2" fill="#22252a"/></pattern><pattern id="${u}pv" width="120" height="60" patternUnits="userSpaceOnUse"><rect width="120" height="60" fill="#b9b5a8"/><rect x="2" y="2" width="56" height="26" fill="#c9c5b8"/><rect x="62" y="2" width="56" height="26" fill="#c2beb1"/><rect x="-28" y="32" width="56" height="26" fill="#c5c1b4"/><rect x="32" y="32" width="56" height="26" fill="#cdc9bc"/><rect x="92" y="32" width="56" height="26" fill="#c2beb1"/></pattern>`,
+   r(0,0,W,206,`url(#${u}tl)`)+r(0,0,W,206,`url(#${u}sh)`,'opacity=".25"')+r(110,16,1120,164,'#3f4c4e')+Array.from({length:11},(_,i)=>ln(`M110 ${24+i*15}H1230`,'#e3e3da',5)).join('')+Array.from({length:8},(_,i)=>ln(`M${250+i*140} 16V180`,'#e3e3da',6)).join('')+r(100,180,1140,12,'#d3d0c4')
+   +r(0,204,W,134,'#f5f5ef')+p('M0 224H570L520 318H0Z',`url(#${u}gs)`)+p('M1040 224H1600V318H990Z',`url(#${u}gs)`)+t(1180,294,56,'POST','#fff','font-style="italic" letter-spacing="4"')
+   +c(660,271,44,'#fff','stroke="#1f8a4c" stroke-width="8"')+r(636,254,48,34,'#1f8a4c','rx="4"')+ln('M638 258L660 274L682 258','#fff',4)+t(840,304,96,'郵 局','#1f8a4c')+r(0,204,W,8,'#d9d9d0')
+   +r(0,338,W,22,'#1c2022')+r(0,360,W,376,'#262b2e')+r(0,360,W,90,`url(#${u}sh)`)
+   +[420,960,1300].map((x,i)=>r(x,372,180,12,'#f4fbf6','rx="6" class="pulse" style="animation-delay:'+(-i)+'s"')+el(x+90,400,150,30,'#e9fff0',`opacity=".25" filter="url(#${u}b)"`)).join('')
+   +r(150,440,230,240,'#e9e2cc')+r(150,440,230,34,'#1f8a4c')+t(265,466,24,'公　告','#fff')+[0,1,2,3].map(i=>r(166+(i%2)*108,490+((i/2)|0)*94,92,78,i%3?'#fbf7ea':'#f6d98a')+ln(`M${176+(i%2)*108} ${512+((i/2)|0)*94}h70m-70 18h56`,'#9a958a',3)).join('')
+   +r(420,420,290,316,'#8d9399')+Array.from({length:15},(_,i)=>ln(`M420 ${432+i*20}H710`,'#70767c',3)).join('')+r(420,420,290,316,`url(#${u}sh)`,'opacity=".3"')
+   +r(850,430,240,306,'#1f8a4c')+r(862,442,104,282,'#cfe3dc','opacity=".9"')+r(974,442,104,282,'#cfe3dc','opacity=".9"')+p('M870 720L940 450h20L890 720z','#fff','opacity=".25"')+r(956,560,6,60,'#e9e9e2')+r(978,560,6,60,'#e9e9e2')+r(850,400,240,32,'#177a42')+t(970,424,22,'營業時間 8:30－17:00','#fff')
+   +r(1130,470,340,170,'#d9e6e0')+ln('M1300 470V640','#1f8a4c',8)+r(1130,440,340,34,'#1f8a4c')+t(1215,465,24,'郵　務','#fff')+t(1385,465,24,'儲　匯','#fff')+r(1120,640,360,18,'#b9b5a8')+r(1130,658,340,78,'#3a4044')
+   +pillar(0,110)+pillar(736,92)+pillar(1500,100)
+   +r(0,736,W,18,'#8f918c')+r(0,754,W,146,`url(#${u}pv)`)+r(0,754,W,50,`url(#${u}sh)`,'opacity=".45"')
+   +parcel(1096,690,96,62)+parcel(1112,640,70,52)
+   +bike(250,800,1,'#2f8a5f')+bike(560,806,.95)
+   +mb(1240,'#1f8a4c','普通')+mb(1330,'#c8372d','限時')
+   +[[900,850,150,26],[1100,872,120,20],[1380,856,170,24],[700,880,130,20]].map(([x,y,a,bb],i)=>el(x,y,a,bb,'#000',`opacity=".07" class="pulseS" style="animation-delay:${-i*1.5}s"`)).join('')
+   +p('M1500 900C1496 700 1470 560 1440 420L1486 410C1516 560 1550 700 1560 900Z','#5a4630')+ln('M1470 520Q1400 440 1340 420','#5a4630',16)
+   +`<g class="rustle">${c(1380,250,170,'#2f6b3f')}${c(1530,180,190,'#377a45')}${c(1440,60,150,'#2f6b3f')}${c(1600,330,130,'#3f8a4f')}${c(1400,160,60,'#63ad5c','opacity=".6"')}${c(1540,90,50,'#63ad5c','opacity=".5"')}</g>`);
+}
+
+function nearStrip(u,N){
+  const names=['麵店','藥局','五金行','冰果室','雜貨','理髮'];
+  const near=(()=>{let s='';const R=rnd(5),cols=N?['#2d2c4c','#353252','#282a48','#322d4a','#2a2946']:['#d8c7a8','#c9b08c','#c5ccbc','#dccfae','#bfb6a2'],sg=['#c8453a','#2f7d6b','#e2a93b','#3f6fb0','#f1eee2'];
+    const tops=[150,270,-80,250,120],tall=['#1f8a4c','#2a4fa0','#e2a93b','#c8453a','#f1eee2'];
+    for(let i=0;i<5;i++){const x=i*320,col=cols[i],top=tops[i];s+=r(x,top,318,530-top,col)+r(x,top,318,530-top,`url(#${u}sv)`,'opacity=".18"')+r(x,top-6,318,10,N?'#1b1a30':'#8f8674');
+      if(top>200){s+=r(x+226,top-190,10,200,N?'#0c0d1c':'#555')+r(x+196,top-200,70,250,tall[i],'stroke="#222" stroke-width="2"')+vt(x+231,top-150,46,names[(i+1)%6].slice(0,3),i==4?'#b3362b':'#fff')+(N?r(x+196,top-200,70,250,'#ffe9a8','opacity=".12"'):'')+r(x+40,top-46,70,46,N?'#22233c':'#9aa39f')+r(x+48,top-70,54,26,N?'#2a2b46':'#b9bcc0','rx="6"')}
+      for(let y=top+30;y+96<462;y+=120){for(let k=0;k<3;k++){const wx=x+26+k*96,lit=N&&R()<.55;s+=r(wx,y,74,96,N?(lit?'#f3cf6d':'#16183a'):'#6f97a8')+(lit?'':r(wx,y,74,40,'#fff','opacity=".06"'))+Array.from({length:5},(_,q)=>ln(`M${wx+6+q*15.5} ${y}V${y+96}`,N?'#0e0f22':'#e9e6da',2)).join('')+ln(`M${wx} ${y+48}H${wx+74}`,N?'#0e0f22':'#e9e6da',2)+r(wx-4,y+96,82,8,N?'#1b1a30':'#9c9483')}
+        if(R()<.7)s+=r(x+232,y+104,60,30,N?'#3a3c50':'#d3d6d0')+r(x+236,y+112,40,6,'#8d918c','opacity=".6"')}
+      s+=(top<200?r(x+6,top+150,150,12,N?'#1b1a30':'#7a8a6c')+[0,1,2,3].map(k=>c(x+24+k*36,top+144,14,N?'#17302a':'#4f9a66')).join(''):'')
+       +r(x,470,318,64,sg[i%5],'opacity=".95"')+r(x,470,318,64,`url(#${u}sh)`,'opacity=".25"')+t(x+159,518,44,names[i%6],i%5==4?'#b3362b':'#fff',`letter-spacing="10"`)+(N?r(x,470,318,64,'#ffe9a8','opacity=".12"'):'')
+       +(top<200?r(x+270,Math.max(top,0)+40,40,200,sg[(i+2)%5],'stroke="#222" stroke-width="2"')+vt(x+290,Math.max(top,0)+76,30,names[(i+3)%6],(i+2)%5==4?'#b3362b':'#fff'):'')
+       +r(x,534,318,170,N?'#0d0e24':'#3b332a')+r(x+34,560,250,144,N?(R()<.7?'#f0b95a':'#191a34'):'#e6d7b2',`opacity="${N?.6:.55}"`)+[0,1].map(q=>r(x+50,590+q*46,218,6,N?'#3a2a1a':'#6a5a48','opacity=".8"')+Array.from({length:6},(_,k)=>r(x+58+k*34,568+q*46,22,22,sg[(k+q+i)%5],'opacity=".7"')).join('')).join('')
+       +r(x,534,26,170,N?'#3a3857':'#bdb5a2')+r(x+292,534,26,170,N?'#3a3857':'#bdb5a2')+r(x,534,318,26,`url(#${u}sh)`,'opacity=".6"')
+       +(i%2?p(`M${x+30} 534h258l14 40h-286z`,i%4==1?'#2f8a82':'#c8453a','opacity=".9"'):'')
+       +scooter(x+60,690,['#c8453a','#3f6fb0','#e9e6da','#2b2b2b','#2f7d6b'][i],1)+(R()<.7?scooter(x+190,690,['#e2a93b','#8a8f94','#c8453a','#3f6fb0','#e9e6da'][i],1):'')}
+    return s})();
+  return near;
+}
+
+/* ---------- moving street (scooter ride / car window) ---------- */
+function street(u,{night=true,frame=false}={}){
+  const N=night;
+  const far=(()=>{let s='',x=0;const R=rnd(3);while(x<W){const w=(110+R()*130)|0,h=(200+R()*230)|0,ww=Math.min(w,W-x);s+=r(x,470-h,ww-6,h+90,N?'#141a3a':['#b4c2cc','#c2c6c0','#a9b7c2'][(R()*3)|0]);for(let wy=470-h+18;wy<460;wy+=30)for(let wx=x+12;wx<x+ww-26;wx+=28)if(R()<.5)s+=r(wx,wy,14,16,N?'#f6d67a':'#e9f1f4',N?'opacity=".8"':'opacity=".7"');x+=w}return s})();
+  const near=nearStrip(u,N);
+  const poles=[200,1000].map(x=>r(x,150,14,550,N?'#0c0d1c':'#6b6d6a')+r(x-60,180,134,8,N?'#0c0d1c':'#6b6d6a')+r(x-20,220,54,40,N?'#15162a':'#8d8f8c','rx="6"')+r(x-56,330,62,8,N?'#0c0d1c':'#6b6d6a')+(N?c(x-52,346,12,'#ffe9a8')+glow(u,x-52,356,48,'#ffd97a','pulse',.4)+p(`M${x-110} 704L${x-52} 350L${x+10} 704Z`,'#ffd97a','opacity=".08"'):c(x-52,346,10,'#e8e8e0'))).join('')+[180,196,330].map((y,i)=>ln(`M207 ${y}Q607 ${y+50+i*8} 1007 ${y}M1007 ${y}Q1407 ${y+50+i*8} 1807 ${y}`,N?'#0c0d1c':'#2b2b2b',2.5)).join('');
+  const dash=Array.from({length:8},(_,i)=>r(i*200,796,110,12,N?'#cdbb72':'#f0e6b8')).join('');
+  const two=(s,cls,d)=>`<g class="${cls}" style="animation-duration:${d}s">${s}<g transform="translate(1600 0)">${s}</g></g>`;
+  let b=r(0,0,W,H,`url(#${u}sky)`)+(N?stars(9,50,200)+c(1290,90,40,'#f4eec8')+glow(u,1290,90,70,'#f4eec8','pulseS',.35):cloud(90,1.2,140,30)+cloud(150,.8,180,110))
+    +two(far,'scroll',80)+two(near,'scroll',18)+r(0,700,W,12,N?'#3a3c5e':'#cfcabb')+r(0,712,W,188,`url(#${u}rd)`)+two(dash,'scroll',5.6)+two(poles,'scroll',18);
+  if(frame)b+=p('M0 0H1600V900H0Z M150 110Q150 80 180 80H1420Q1450 80 1450 110V610Q1450 640 1420 640H180Q150 640 150 610Z','#17120e','fill-rule="evenodd"')+p('M150 110Q150 80 180 80H1420Q1450 80 1450 110V200H150Z','#fff','opacity=".05"')+r(700,80,200,54,'#0c0a08','rx="10"')+r(712,90,176,34,'#4d5a66','rx="6"')+p('M0 660H1600V900H0Z','#221a14')+`<circle cx="430" cy="860" r="200" fill="none" stroke="#0e0b09" stroke-width="34"/>`+r(980,700,320,90,'#15100c','rx="12"');
+  return svg(u,lg(u+'sky',N?[[0,'#070d24'],[1,'#2a2f5e']]:[[0,'#9fd0e6'],[1,'#f1ead6']])+shadow(u+'sh')+lg(u+'sv',[[0,'#000',0],[1,'#000',.8]],false)+lg(u+'rd',N?[[0,'#1b1d33'],[1,'#0f1020']]:[[0,'#6d7074'],[1,'#55585c']]),b);
+}
+
+/* ---------- the hall, seen from the back: one pillar in the middle (bare shell / finished sanctuary) ---------- */
+const hallD=u=>ambD(u)+lg(u+'cl',[[0,'#000',.22],[.35,'#000',0],[1,'#000',.3]],false)+lg(u+'wd',[[0,'#c9823f'],[1,'#b06c30']])
+  +`<pattern id="${u}sl" width="26" height="400" patternUnits="userSpaceOnUse"><rect width="26" height="400" fill="#bd7636"/><rect x="0" width="2.5" height="400" fill="#7a4520" opacity=".75"/><rect x="3" width="2" height="400" fill="#e0a05c" opacity=".35"/></pattern><pattern id="${u}tz" width="60" height="60" patternUnits="userSpaceOnUse"><rect width="60" height="60" fill="#e4dfd2"/><circle cx="8" cy="10" r="2.5" fill="#cfc8b6"/><circle cx="34" cy="20" r="2" fill="#bdb6a4"/><circle cx="20" cy="42" r="3" fill="#d6cfbd"/><circle cx="50" cy="48" r="2" fill="#c5beac"/><circle cx="46" cy="6" r="1.6" fill="#b5ae9c"/></pattern>`;
+function bare(u){
+  const bricks=(()=>{let s='';for(let j=0;j<4;j++)for(let i=0;i<6-j;i++)s+=r(1170+i*52+j*26,812-j*26,48,22,j%2?'#a5553c':'#b5604a','stroke="#7a3a2a" stroke-width="2"');return s})();
+  return svg(u,hallD(u),
+   r(0,0,W,300,'#84878b')+p('M620 0H980L880 300H720Z','#74777b')+[70,140,210].map(y=>ln(`M0 ${y}H${640-y*.27}M${960+y*.27} ${y}H1600`,'#7a7d81',2)).join('')+r(0,236,W,70,'#6e7175')+r(0,236,W,70,`url(#${u}sh)`,'opacity=".4" transform="rotate(180 800 271)"')
+   +r(0,306,W,400,'#a3a6a9')+[406,506,606].map(y=>ln(`M0 ${y}H1600`,'#96999d',2)).join('')+[200,400,600,1000,1200,1400].map(x=>ln(`M${x} 306V706`,'#96999d',2)+c(x+100,356,5,'#84878b')+c(x+100,556,5,'#84878b')).join('')
+   +r(0,306,W,60,`url(#${u}sh)`,'opacity=".5"')
+   +r(0,706,W,194,'#74777c')+r(0,706,W,194,`url(#${u}fl)`)+el(1080,790,220,36,'#63666a','opacity=".25"')+el(380,840,260,40,'#6a6d72','opacity=".3"')
+   +p('M0 330V640L640 900H150L0 800Z','#fff1c0','opacity=".2" class="pulseS"')+p('M0 330L420 706H0Z','#fff1c0','opacity=".1"')+motes(12,40,20,420,560,420)
+   +r(720,300,46,600,'#7c7f83')+r(766,300,114,600,'#a2a5a9')+ln('M766 300V900','#6a6d71',3)+[420,560,700,840].map(y=>ln(`M720 ${y}H880`,'#84878b',2)+c(800,y-70,4,'#7a7d81')+c(850,y-70,4,'#7a7d81')).join('')+ln('M790 300V230M812 300V214M770 300V250','#7a3a2a',4)
+   +ln('M1420 306V706','#b8763a',8)+ln('M1420 430H1600','#b8763a',8)+r(1404,520,32,44,'#6d7075')
+   +`<g class="swing" style="transform-origin:540px 236px">${ln('M540 236V360','#2b2b2b',4)}${c(540,378,20,'#fff3c4')}${glow(u,540,378,70,'#ffe9a8','pulse',.5)}</g>`
+   +ln('M250 600L330 880M320 600L410 880','#8a6a45',10)+[660,740,820].map((y,i)=>ln(`M${270+i*24} ${y}H${340+i*26}`,'#8a6a45',8)).join('')
+   +bricks+sh(u,1290,840,180,14)+r(1010,806,96,64,'#c9c3b4','rx="8"')+r(1024,796,68,14,'#a9a393')+r(590,826,150,50,'#bdb7a6','rx="12"')+r(604,790,150,44,'#c5bfae','rx="12"')+el(470,872,70,16,'#5f6266')+r(430,812,80,60,'#8d9399','rx="6"')
+   +amb(u));
+}
+function sanct(u,{old=false}={}){
+  const O=old;
+  const chair=(x,y,s,k)=>`<g transform="translate(${x} ${y}) scale(${s})">${ln('M-52 30V86M52 30V86','#b9bcc0',6)}${O?r(-56,-70,112,70,'#7c8a92','rx="10"')+r(-56,-70,112,16,'#93a1a9','rx="8"')+r(-58,14,116,16,'#6c7a82','rx="6"'):r(-58,16,116,16,'#3350a0','rx="6"')+r(-64,-96,128,116,'#1b2442','rx="18"')+p('M-52 -90Q0 -104 52 -90L50 -70Q0 -82 -50 -70Z','#2d3960','opacity=".7"')+r(-50,-34,100,44,'#131a33','rx="6"')+r(-40,-50,52,24,k%2?'#c8372d':'#2a4fa0','rx="3" transform="rotate(-5)"')+r(14,-46,34,22,k%2?'#2a4fa0':'#b02a2a','rx="3" transform="rotate(4)"')+r(-38,-48,48,4,'#f4f0e4','transform="rotate(-5)"')}</g>`;
+  const row=(y,s,xs)=>xs.map((x,i)=>chair(x,y,s,i+Math.round(y))).join('');
+  const lightP=(x,y,w,h,k)=>p(`M${x} ${y}h${w}l${k} ${h}h${-w-2*k+k}z`,'#fff')+el(x+w/2,y+h/2,w*.7,h*1.4,'#fff',`opacity=".35" filter="url(#${u}b)" class="pulse"`);
+  let b=r(0,0,W,300,O?'#e6e2d6':'#f2f1ec')+p('M620 0H980L880 300H720Z',O?'#dcd8cc':'#fafaf6')+ln('M620 0L720 300M980 0L880 300','#cfcdc4',3)
+   +[[180,40,300,44,-60],[1120,40,300,44,60],[330,150,220,30,-36],[1050,150,220,30,36]].map(([x,y,w,h,k])=>`<g>${p(`M${x} ${y}h${w}l${k*.4} ${h}h${-w}z`,'#fff','stroke="#c9c7be" stroke-width="4"')}${ln(`M${x+10} ${y+h/3}h${w-10}M${x+14} ${y+h*2/3}h${w-10}`,'#d5dde2',3)}${el(x+w/2,y+h/2+16,w*.5,h,'#fff',`opacity=".3" filter="url(#${u}b)" class="pulse"`)}</g>`).join('')
+   +(O?'':[[520,60,70,90],[1010,60,70,90]].map(([x,y,w,h])=>r(x,y,w,h,'#d9d7ce')+Array.from({length:7},(_,i)=>ln(`M${x+6} ${y+10+i*12}h${w-12}`,'#aeaca3',3)).join('')).join(''))
+   +r(0,236,W,70,O?'#d9d5c8':'#ecebe5')+r(0,300,W,10,'#cfcdc4')+r(0,236,W,70,`url(#${u}sh)`,'opacity=".12" transform="rotate(180 800 271)"')
+   +r(0,310,W,400,O?'#e0dccf':'#f4f3ee')+r(0,310,W,50,`url(#${u}sh)`,'opacity=".18"')
+   +r(80,372,1340,334,`url(#${u}sl)`)+r(80,372,1340,334,`url(#${u}sh)`,'opacity=".28"')+ln('M410 372V706M1090 372V706','#7a4520',5)
+   +(O?'':[250,560,1010,1300].map(x=>r(x,330,70,16,'#fff')+el(x+35,350,60,16,'#fff',`opacity=".4" filter="url(#${u}b)"`)).join(''))
+   +r(1440,400,140,306,O?'#d3cfc2':'#eceae2')+(O?'':[0,1,2,3].map(i=>r(1452,412+i*72,116,6,'#b9b5a8')+Array.from({length:6},(_,k)=>r(1458+k*18,424+i*72-6+(k%2)*4,14,54-(k%2)*4,['#2a4fa0','#f4f0e4','#b02a2a','#2f6b4f'][(i+k)%4])).join('')).join(''))
+   +r(430,690,740,26,'#8a2f2f')+r(430,714,740,10,'#6a2222');
+  // cross with backlight, left of the pillar
+  b+=(O?'':r(600,440,26,236,'#ffcf6a',`filter="url(#${u}b)" opacity=".9" class="pulseS"`)+r(552,494,122,24,'#ffcf6a',`filter="url(#${u}b)" opacity=".9" class="pulseS"`)+glow(u,613,520,90,'#ffb84a','pulseS',.35))+r(602,440,22,236,O?'#6b4a2e':'#8a6a2a')+r(554,496,118,20,O?'#6b4a2e':'#8a6a2a')+r(608,440,6,236,'#d9b65a','opacity=".5"');
+  // high-backed chairs, flowers, communion table, pulpit
+  const hc=x=>p(`M${x} 690V470l90 -18V690Z`,'#d59a55')+r(x-8,600,108,16,'#c98a45')+r(x-8,616,12,74,'#b97a38')+r(x+88,616,12,74,'#b97a38');
+  b+=hc(450)+hc(1070)
+   +(O?'':[[516,618],[1010,618]].map(([x,y])=>r(x-44,y,88,72,'#f7f5ee')+Array.from({length:8},(_,i)=>c(x-38+i*11,y+70,6,'#f7f5ee')).join('')+`<g class="rustle">${ln(`M${x} ${y}Q${x-10} ${y-70} ${x+6} ${y-110}`,'#2f6b3f',5)}${el(x-18,y-30,22,12,'#2f6b3f','transform="rotate(-30 '+(x-18)+' '+(y-30)+')"')}${el(x+20,y-40,24,12,'#3f8a4f','transform="rotate(25 '+(x+20)+' '+(y-40)+')"')}${c(x+6,y-106,12,'#f7f5ee')}${c(x-12,y-70,10,'#f7f5ee')}${c(x-22,y-8,9,'#e8b923')}${c(x-4,y-12,10,'#f2c938')}${c(x+16,y-6,9,'#e8b923')}${c(x+30,y-14,7,'#f2c938')}</g>`).join(''))
+   +r(900,520,170,90,'#e0a868')+p('M888 520H1082L1070 560H900Z','#d09450')+r(912,610,146,84,'#b97a38')+Array.from({length:7},(_,i)=>ln(`M985 690L${920+i*22} 616`,'#9c6228',3)).join('')+(O?'':p('M950 518H1030V620L990 650L950 620Z','#1f9a6c')+ln('M960 520Q930 430 900 420','#2b2b2b',4)+c(900,420,6,'#2b2b2b'))
+   +r(606,640,330,22,O?'#b97a38':'#d8402f')+r(600,662,342,14,'#d59a55')+p('M630 676H660L650 760H624ZM882 676H912L918 760H892Z','#c98a45')+r(650,690,240,50,'#d59a55')+r(764,694,10,40,'#8a5a2a')+r(752,706,34,9,'#8a5a2a');
+  if(!O)b+=r(1120,400,270,214,'#fbfbf8','stroke="#d9d7ce" stroke-width="4"')+r(1120,400,270,214,'#dfeaf6','opacity=".5" class="pulseS"')+r(1116,612,278,8,'#333')
+   +r(300,300,90,26,'#e9e7df','rx="4"')+r(326,262,10,40,'#333')+c(380,313,8,'#333')+r(1190,300,90,26,'#e9e7df','rx="4"')+r(1216,262,10,40,'#333')+c(1200,313,8,'#333')
+   +p('M1290 610H1600V672H1330Q1290 672 1290 640Z','#111')+r(1290,604,310,10,'#2b2b2b')+r(1330,672,14,70,'#111')+r(1560,672,14,70,'#111')+p('M1300 612H1600V624H1300Z','#fff','opacity=".12"')
+   +ln('M1500 600V740M1470 744H1530','#222',6)+p('M1440 560H1580L1570 600H1450Z','#222')
+   +r(1212,640,8,90,'#e9e7df')+c(1216,620,34,'#f4f4f0','stroke="#cfcdc4" stroke-width="4"')+c(1216,620,8,'#b9bcc0')+el(1216,734,30,7,'#d9d7ce');
+  b+=p('M0 610L210 640V706H0Z','#8a5a34')+p('M0 660L300 676V706H0Z','#7a4d2b')+ln('M0 628L210 656M0 644L210 668','#6a4020',3)+p('M300 640L430 600V706H300Z','#c98a45')
+   +r(0,706,W,194,`url(#${u}tz)`)+r(0,706,W,194,`url(#${u}fl)`)+r(0,706,W,30,`url(#${u}sh)`,'opacity=".3"')
+   +row(790,.78,O?[200,360,520,1080,1240,1400]:[150,300,450,600,1000,1150,1300,1450])
+   +sh(u,800,890,150,14,.25)+r(720,300,46,590,O?'#c9c5b8':'#d9d9d2')+r(766,300,114,590,O?'#e6e2d5':'#f8f8f4')+ln('M766 300V890',O?'#b5b1a4':'#c2c0b6',2)+r(712,870,176,24,O?'#cfc8b6':'#ddd6c4')
+   +row(860,1,O?[130,330,530,1070,1270,1470]:[90,270,450,630,980,1160,1340,1520])+row(960,1.3,O?[240,500,1100,1360]:[180,420,660,940,1180,1420])
+   +(O?motes(40,18,200,360,1200,300):'');
+  return svg(u,hallD(u),b+amb(u));
+}
+
+/* ---------- church | lane | driving school, looking down the lane at night ---------- */
+function smallSign(u){
+  const VX=800,VY=420,Y=(y0,x,x0)=>+(VY+(y0-VY)*((VX-x)/(VX-x0))).toFixed(1);
+  const wq=(x0,x1,x2,ya,yb,f,e='')=>p(`M${x1} ${Y(ya,x1,x0)}L${x2} ${Y(ya,x2,x0)}L${x2} ${Y(yb,x2,x0)}L${x1} ${Y(yb,x1,x0)}Z`,f,e);
+  const L=0,Rr=1600;
+  return svg(u,lg(u+'sky',[[0,'#060b20'],[1,'#2a2f5e']])+lg(u+'sw',[[0,'#ffe9a8',0],[.5,'#ffe9a8',.3],[1,'#ffe9a8',0]],false)+shadow(u+'sh')+lg(u+'rd',[[0,'#23263f'],[1,'#0e0f1e']])+lg(u+'wl',[[0,'#1b1e30'],[1,'#30344c']],false)+lg(u+'wr',[[0,'#3a3e54'],[1,'#22253a']],false),
+   r(0,0,W,H,`url(#${u}sky)`)+stars(4,70,380)+c(1010,120,36,'#f4eec8')+glow(u,1010,120,66,'#f4eec8','pulseS',.3)
+   +r(700,340,90,90,'#141a3a')+r(790,360,110,70,'#171d40')+[[712,352],[740,352],[712,380],[806,372],[840,372],[870,396]].map(([x,y])=>r(x,y,12,14,'#f6d67a','opacity=".8"')).join('')+c(800,404,5,'#ffe9a8')+glow(u,800,404,26,'#ffd97a','tw',.5)
+   // ground
+   +p('M114 900H330L800 420Z','#1d2036')+p('M330 900L800 420L1270 900Z',`url(#${u}rd)`)+p('M1270 900L800 420L1486 900Z','#1d2036')
+   +[[446,458,3],[474,492,5],[516,548,8],[590,650,12],[730,860,18]].map(([a,b,w])=>r(800-w/2,a,w,b-a,'#8f8658','opacity=".75"')).join('')
+   // right: the driving school behind its wall and fence
+   +`<g class="rustle">${[980,1120,1280,1440,1580].map((x,i)=>c(x,330-(i%2)*30+i*6,90+i*14,'#0f1d22')+c(x+60,360,70+i*8,'#12242a')).join('')}</g>`
+   +r(1016,270,12,220,'#161a2c')+r(1530,270,12,330,'#161a2c')+r(980,130,590,150,'#000','opacity=".3" transform="translate(6 6)"')+r(980,130,590,150,'#5a5646')+r(992,142,566,126,'#a39d86')+t(1275,228,70,'良友汽車教練場','#3a1915')
+   +wq(Rr,880,1600,600,980,`url(#${u}wr)`)+wq(Rr,880,1600,590,612,'#4a4f66')
+   +c(1560,330,10,'#ffe9a8')+glow(u,1560,340,70,'#ffd97a','pulse',.3)
+   // left: the building with the small, unlit church sign
+   +wq(L,0,700,-360,980,`url(#${u}wl)`)+wq(L,0,700,-360,-330,'#3a3e54')
+   +[[40,170],[220,320],[470,540],[580,630]].map(([a,b])=>wq(L,a,b,-140,150,'#121526')+wq(L,a,b,150,168,'#2c3148')).join('')+[[40,170],[470,540],[580,630]].map(([a,b],i)=>wq(L,a,b,290,560,i==1?'#3b3a2a':'#121526')+wq(L,a,b,560,578,'#2c3148')).join('')
+   +wq(L,196,306,540,980,'#0b0d17')+wq(L,188,314,520,544,'#2c3148')
+   +r(318,Y(262,330,L),20,8,'#0d0f1c')+r(318,Y(690,330,L)-8,20,8,'#0d0f1c')+r(336,Y(250,330,L),88,Y(700,330,L)-Y(250,330,L),'#000','opacity=".35" transform="translate(6 6)"')+r(330,Y(250,330,L),88,Y(700,330,L)-Y(250,330,L),'#6f6a5c')+r(338,Y(250,330,L)+8,72,Y(700,330,L)-Y(250,330,L)-16,'#b9b29b','opacity=".55"')+vt(374,Y(250,330,L)+68,52,'景美教會','#2b1a14')
+   +scooter(150,880,'#3a3f58',1.7)
+   +`<rect class="sweep" x="-560" y="60" width="560" height="840" fill="url(#${u}sw)"/>`);
+}
+
+/* ---------- living room ---------- */
+function living(u,{boxes=false,night=false}={}){
+  const box=(x,y,w,h)=>r(x,y,w,h,'#c69a5d','stroke="#9a7440" stroke-width="3"')+r(x+w/2-10,y,20,h,'#dcc28e','opacity=".7"')+ln(`M${x} ${y+16}H${x+w}`,'#9a7440',2);
+  let b=r(0,0,W,640,'#e6cfa2')+r(0,470,W,170,'#d9bf8f')+r(0,462,W,10,'#c2a271')+r(0,630,W,16,'#8a6a45')+r(0,646,W,254,'#b08a5c')+[700,770,840].map(y=>ln(`M0 ${y}H1600`,'#9c784d',3)).join('')
+   +r(250,120,420,310,'#f7f1e0')+r(266,136,388,278,night?'#18224a':'#bfe1ea')+(night?c(560,210,26,'#f4eec8')+stars(31,0):el(380,330,120,40,'#d8eef0','opacity=".8"'))+ln('M460 136V414M266 275H654','#f7f1e0',10)
+   +p('M236 110H690V140H236Z','#8a6a45')+p('M246 140H340Q330 300 300 440H246Z','#c7655a','class="sway"')+p('M680 140H586Q596 300 626 440H680Z','#c7655a','class="sway" style="animation-delay:-2s"')
+   +r(770,150,110,150,'#fbf7ea','stroke="#c9b68c" stroke-width="2"')+r(770,150,110,38,'#c8362b')+t(825,262,72,'24','#33291f')
+   +c(1010,190,60,'#7a5536')+c(1010,190,50,'#fbf4dd')+ln('M1010 190V152M1010 190L1036 204','#33291f',5)+`<g class="swing" style="transform-origin:1010px 250px;animation-duration:1s">${ln('M1010 250V330','#7a5536',5)}${c(1010,338,14,'#d9a441')}</g>`
+   +r(240,440,600,150,'#4f8a80','rx="28"')+r(220,556,640,96,'#5b9a8f','rx="24"')+r(200,520,60,140,'#467d73','rx="20"')+r(820,520,60,140,'#467d73','rx="20"')+ln('M540 566V640','#4f8a80',4)+r(300,470,150,100,'#e2a93b','rx="16" opacity=".9"')+r(250,652,20,34,'#5a4028')+r(810,652,20,34,'#5a4028')
+   +r(380,712,360,26,'#7a5536','rx="6"')+r(400,738,18,90,'#6a482c')+r(702,738,18,90,'#6a482c')+p('M470 692L640 684L654 708L482 714Z','#f4f0e4')+ln('M490 698L630 692M494 706L640 700','#9a958a',3)
+   +r(1080,430,330,216,'#8c623c')+r(1096,446,144,184,'#7a5332')+r(1250,446,144,184,'#7a5332')+c(1232,540,6,'#d9a441')+c(1258,540,6,'#d9a441')
+   +r(1120,290,250,150,'#4a4038','rx="16"')+r(1138,306,170,118,'#9db3a8','rx="22"')+c(1340,330,10,'#c9b68c')+c(1340,364,10,'#c9b68c')
+   +r(1450,190,150,456,'#a87c50')+r(1466,206,118,200,'#b88a5c')+c(1474,430,9,'#d9a441')
+   +r(928,400,8,250,'#5a4028')+el(932,654,46,10,'#5a4028')+p('M880 400L984 400L962 320H902Z','#f3d68a')+glow(u,932,380,night?150:90,'#ffe09a','pulse',night?.75:.4);
+  b+=r(0,0,W,150,`url(#${u}sh)`,'opacity=".22"')+r(0,646,W,254,`url(#${u}fl)`)+sh(u,540,692,350,20)+sh(u,560,832,210,12)+sh(u,1245,652,190,12)+(night?'':p('M290 650H650L860 900H330Z','#fff1c0','opacity=".08" class="pulseS"'));
+  if(boxes)b+=box(60,640,230,170)+box(110,520,170,122)+box(1010,700,250,160)+box(1290,740,180,120)+box(1050,600,160,100);
+  else b+=p('M1392 300a32 32 0 0 1 64 0v12h-64z','#f4f0e4')+p('M1396 372a30 30 0 0 1 60 0v12h-60z','#c8453a')+r(1418,270,8,14,'#5a4028')
+   +r(1000,780,50,50,'#e2a93b','rx="6"')+r(1056,800,44,44,'#3f6fb0','rx="6"')+r(1016,736,44,44,'#c8453a','rx="6"')+c(1180,820,30,'#2f7d6b')+p('M1150 820a30 30 0 0 1 60 0','#f4f0e4','opacity=".6"');
+  if(night)b+=r(0,0,W,H,'#080c28','opacity=".58"')+glow(u,932,400,200,'#ffd98a','pulse',.5)+p('M880 400L984 400L962 320H902Z','#ffe7a8');
+  return svg(u,ambD(u),b+amb(u));
+}
+
+/* ---------- driving school ---------- */
+function driving(u){
+  const cone=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})">${p('M-18 0L-5 -62H5L18 0Z','#e8702a')}${p('M-11 -30H11L8 -44H-8Z','#fbf6e6')}${r(-26,0,52,8,'#c95a1c','rx="3"')}</g>`;
+  return svg(u,lg(u+'sky',[[0,'#8fc6e4'],[1,'#eef3e6']])+brick(u+'br')+shadow(u+'sh')+lg(u+'fl',[[0,'#000',0],[1,'#000',.3]]),
+   r(0,0,W,H,`url(#${u}sky)`)+cloud(100,1.1,150,60)+cloud(190,.7,200,10)
+   +r(40,96,330,240,`url(#${u}br)`)+r(40,96,330,240,`url(#${u}sh)`,'opacity=".25"')+[0,1].map(f=>r(30,170+f*90,350,10,'#cfa894')+[0,1,2].map(k=>r(70+k*104,118+f*90,66,52,'#3d4c4c')).join('')+Array.from({length:14},(_,k)=>ln(`M${46+k*25} ${180+f*90}v30`,'#8f8a7c',3)).join('')).join('')
+   +r(1250,60,300,280,'#cfc8b8')+r(1250,60,300,280,`url(#${u}sh)`,'opacity=".2"')+[0,1,2].map(f=>[0,1,2].map(k=>r(1276+k*92,86+f*84,60,50,'#7f9fae')).join('')).join('')
+   +tree(1180,250,.8,'#6b4a2e','#3f7f55','#4f9a66')+tree(420,260,.7,'#6b4a2e','#4f9a66','#3f7f55')
+   +ln('M0 120Q800 200 1600 130','#6b6250',3)+Array.from({length:20},(_,i)=>{const x=20+i*82,y=120+70*(1-Math.pow((x-800)/800,2))+4;return p(`M${x} ${y}h44l-22 46z`,['#c8453a','#e2a93b','#3f6fb0','#2f7d6b'][i%4],`class="sway" style="animation-delay:${-i*.3}s;animation-duration:1.6s"`)}).join('')
+   +r(0,330,W,96,'#d9d3c2')+r(0,322,W,12,'#bdb6a2')+r(470,300,14,60,'#6b6250')+r(1116,300,14,60,'#6b6250')+r(400,176,800,130,'#fdf6e0','rx="6" stroke="#b3362b" stroke-width="6"')+t(800,270,84,'良友汽車教練場','#b3362b','letter-spacing="4"')
+   +r(0,426,W,474,'#5f646b')+r(0,426,W,474,`url(#${u}fl)`)+r(0,426,W,40,`url(#${u}sh)`,'opacity=".45"')+sh(u,750,676,210,16,.4)+ln('M-50 560C300 460 500 760 900 640S1400 520 1700 600','#f2c94c',10)+ln('M-50 680C300 580 500 880 900 760S1400 640 1700 720','#f2c94c',10)
+   +`<path d="M1090 740L1360 716L1450 868L1130 896Z" fill="none" stroke="#fbf6e6" stroke-width="9"/>`+ln('M0 470H1600','#fbf6e6',6,'stroke-dasharray="60 40"')
+   +r(244,290,12,300,'#333')+r(214,196,72,176,'#222','rx="14"')+c(250,232,22,'#e24a3b','class="tlr"')+c(250,284,22,'#e2a93b','opacity=".2"')+c(250,336,22,'#45c46a','class="tlg"')
+   +`<g transform="translate(560 520)">${r(0,60,380,90,'#8fb3c9','rx="18"')}${p('M70 60L110 0H270L320 60Z','#8fb3c9')}${p('M96 56L124 14H184V56ZM200 56V14H260L296 56Z','#d8eef0')}${r(150,-22,90,22,'#fbf6e6','rx="4" stroke="#b3362b" stroke-width="2"')}${t(195,-5,17,'教練車','#b3362b')}${c(86,150,36,'#2b2b2b')}${c(86,150,14,'#bdbdbd')}${c(300,150,36,'#2b2b2b')}${c(300,150,14,'#bdbdbd')}${r(350,84,26,16,'#f6d98a','rx="4"')}</g>`
+   +cone(1090,740,.9)+cone(1360,716,.9)+cone(1450,868,1.2)+cone(1130,896,1.2)+cone(420,640)+cone(760,812,1.1)+cone(1000,612,.8)+cone(160,760,1.1));
+}
+
+/* ---------- market + home kitchen (two halves) ---------- */
+function market(u){
+  const crate=(x,y,col,n,rr)=>r(x,y,170,90,'#b98f4c','stroke="#8a6540" stroke-width="4"')+Array.from({length:n},(_,i)=>c(x+24+(i%5)*30,y-4-((i/5)|0)*(rr+4),rr,col[i%col.length])).join('')+ln(`M${x} ${y+30}H${x+170}M${x} ${y+60}H${x+170}`,'#8a6540',3);
+  return svg(u,`<clipPath id="${u}l"><rect x="0" y="0" width="786" height="900"/></clipPath><clipPath id="${u}r"><rect x="814" y="0" width="786" height="900"/></clipPath>`,
+   r(0,0,W,H,'#241a14')
+   +`<g clip-path="url(#${u}l)">`+r(0,0,790,900,'#e9d6ae')+r(0,150,790,330,'#d9c092')+Array.from({length:10},(_,i)=>r(i*80,0,80,150,i%2?'#c8453a':'#f6ead0')+c(i*80+40,150,40,i%2?'#c8453a':'#f6ead0')).join('')
+   +[190,400,610].map((x,i)=>`<g class="swing" style="transform-origin:${x}px 150px;animation-delay:${-i}s">${ln(`M${x} 150V270`,'#333',4)}${c(x,286,18,'#fff3c4')}${glow(u,x,286,60,'#ffe9a8','pulse',.5)}</g>`).join('')
+   +ln('M690 190V330','#555',4)+c(690,372,44,'#f4f0e4','stroke="#555" stroke-width="5"')+ln('M690 372L712 350','#c8453a',4)+ln('M660 420L690 470L720 420','#555',4)+el(690,474,44,10,'#9aa0a4')
+   +r(30,560,730,36,'#8a6540')+r(30,596,730,304,'#a57c4e')+crate(50,480,['#4f9a54','#63ad5c'],10,20)+crate(240,480,['#e8702a','#f08a3c'],10,16)+crate(430,480,['#c8362b','#de4a3a'],10,17)+crate(600,480,['#eef3e6','#dfe9d2'],8,22)
+   +crate(120,700,['#9ac86a','#b5d98a'],8,24)+crate(350,700,['#7a4a8a','#93619f'],10,17)+crate(560,700,['#e2c13b','#edd15c'],10,16)
+   +[110,300,490].map((x,i)=>r(x,430,56,34,'#fbf6e6','transform="rotate(-6 '+x+' 430)"')+t(x+28,455,22,['8元','5元','12元'][i],'#b3362b',`transform="rotate(-6 ${x} 430)"`)).join('')
+   +`</g><g clip-path="url(#${u}r)">`+r(814,0,786,900,'#dfe8e6')+Array.from({length:10},(_,i)=>ln(`M${814+i*80} 0V620`,'#c5d2cf',3)).join('')+Array.from({length:8},(_,i)=>ln(`M814 ${i*80}H1600`,'#c5d2cf',3)).join('')
+   +r(1300,80,240,190,'#cfe6ef','stroke="#fbf6e6" stroke-width="12"')+ln('M1420 80V270','#fbf6e6',8)
+   +r(860,200,360,14,'#8a6540')+r(880,120,34,80,'#33241a','rx="6"')+r(888,100,18,24,'#33241a')+r(940,140,40,60,'#c8453a','rx="6"')+r(1000,150,50,50,'#e6c283','rx="8"')+r(1080,130,30,70,'#2f6b4f','rx="6"')
+   +r(814,620,786,280,'#b9b2a2')+r(814,610,786,20,'#9aa0a4')+r(960,576,500,40,'#3d3d3d','rx="8"')
+   +[1070,1120,1170,1220,1270,1320].map((x,i)=>p(`M${x} 580q-12 -18 0 -34q12 16 0 34z`,'#5aa9e6',`class="flame" style="animation-delay:${-i*.13}s"`)).join('')
+   +r(1030,400,360,150,'#3d3a38','rx="22"')+el(1210,402,180,32,'#2b2826')+el(1210,404,162,24,'#5a2f1a')+[1120,1190,1260,1310].map((x,i)=>el(x,400+(i%2)*6,34,12,'#7a4526')).join('')+r(990,440,44,18,'#2b2826','rx="9"')+r(1386,440,44,18,'#2b2826','rx="9"')
+   +steam(u,1210,380,4,74,'#fff2d0',1.5,6)+steam(u,1180,360,2,120,'#f6d98a',1.1,8)
+   +ln('M1330 400L1440 300','#9aa0a4',9)+el(900,596,60,16,'#fbf6e6')+el(900,588,46,10,'#7a4526')
+   +`</g>`);
+}
+
+/* ---------- church kitchen ---------- */
+function kitchen(u,{now=false}={}){
+  const bowl=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})">${p('M-34 0Q0 44 34 0Z','#fbf6e6','stroke="#c9c2ae" stroke-width="3"')}${el(0,0,34,9,'#f1e7c8')}</g>`;
+  let b=r(0,0,W,620,now?'#e3ebe8':'#d9dccf')+Array.from({length:20},(_,i)=>ln(`M${i*80} 0V620`,now?'#cbd6d3':'#c4c7b8',3)).join('')+Array.from({length:8},(_,i)=>ln(`M0 ${i*80}H1600`,now?'#cbd6d3':'#c4c7b8',3)).join('')
+   +r(1150,110,330,220,'#cfe6ef','stroke="#fbf6e6" stroke-width="12"')+ln('M1315 110V330','#fbf6e6',8)
+   +r(120,214,560,14,'#8a6540')+[160,230,300].map(x=>bowl(x,206,.9)+bowl(x,190,.9)+bowl(x,174,.9)).join('')+r(400,134,34,80,'#33241a','rx="6"')+r(456,150,44,64,'#c8453a','rx="6"')+r(520,160,56,54,'#e6c283','rx="8"')+r(600,140,30,74,'#2f6b4f','rx="6"')
+   +r(720,180,380,8,'#777')+[760,820,880].map((x,i)=>`<g class="swing" style="transform-origin:${x}px 184px;animation-delay:${-i*.8}s;animation-duration:4s">${ln(`M${x} 184V290`,'#8a8f94',6)}${i==1?r(x-16,290,32,50,'#8a8f94','rx="6"'):c(x,306,22,'#8a8f94')}</g>`).join('')
+   +[960,1040].map((x,i)=>`<g class="sway" style="animation-delay:${-i*2}s">${p(`M${x-10} 184h20l30 60v120h-80v-120z`,i?'#3f6fb0':'#c8453a')}${r(x-18,280,36,30,i?'#345c94':'#a8372d','rx="4"')}</g>`).join('')
+   +r(0,0,W,160,`url(#${u}sh)`,'opacity=".2"')+r(0,600,W,44,'#9aa0a4')+r(0,600,W,9,'#fff','opacity=".4"')+r(0,644,W,256,now?'#b9c0c2':'#b0a48c')+r(0,644,W,60,`url(#${u}sh)`,'opacity=".55"')+r(0,700,W,200,`url(#${u}fl)`)
+   +[360,440,520,600,680].map((x,i)=>p(`M${x} 648q-16 -24 0 -46q16 22 0 46z`,'#f08a3c',`class="flame" style="animation-delay:${-i*.11}s"`)+p(`M${x} 648q-8 -12 0 -24q8 12 0 24z`,'#f6d98a',`class="flame" style="animation-delay:${-i*.17}s"`)).join('')
+   +p('M270 540Q520 700 770 540Z','#2b2b2b')+el(520,540,250,50,'#3a3a3a')+el(520,542,226,40,'#b5651d')+[400,470,540,610,660,450,580].map((x,i)=>el(x,536+(i%3)*8,26,9,i%2?'#4f9a54':'#e8a23c')).join('')+r(226,528,50,18,'#2b2b2b','rx="9"')+r(764,528,50,18,'#2b2b2b','rx="9"')
+   +ln('M640 520L790 380','#8a6540',12)+steam(u,520,500,5,84,'#fff',1.7,6)
+   +r(880,410,230,196,'#c9ced2','rx="14"')+el(995,412,115,24,'#e3e7ea')+el(995,414,100,17,'#d9b06a')+r(852,450,34,16,'#9aa0a4','rx="8"')+r(1104,450,34,16,'#9aa0a4','rx="8"')+steam(u,995,392,3,60,'#fff',1.2,5)
+   +r(1210,560,320,44,'#dfe4e6','rx="8"')+ln('M1470 560V470Q1470 440 1430 440','#8a8f94',12)+r(1240,486,190,84,'#3f8a5a','rx="16" opacity=".9"')+[1262,1300,1338,1376,1408].map((x,i)=>c(x,486,24,i%2?'#63ad5c':'#4f9a54')).join('');
+  if(now)b+=p('M300 60H740L800 250H240Z','#b8bdc2')+r(240,250,560,16,'#9aa0a4')+r(100,40,0,0,'none')
+   +r(900,60,220,84,'#c8372d','rx="6"')+t(1010,122,58,'愛　餐','#fbe7a8')
+   +r(60,770,1480,34,'#f4f0e4')+r(60,804,1480,96,'#e3ddcc')+Array.from({length:10},(_,i)=>bowl(170+i*140,770,1.25)+steam(u,170+i*140,756,1,0,'#fff',.6,4+i%3)).join('');
+  else b+=`<g class="swing" style="transform-origin:800px 0px">${ln('M800 0V96','#333',4)}${c(800,112,20,'#fff3c4')}${glow(u,800,112,80,'#ffe9a8','pulse',.5)}</g>`
+   +r(80,740,220,150,'#c69a5d','stroke="#9a7440" stroke-width="3"')+r(1260,760,230,110,'#3f8a5a','rx="18" opacity=".9"')+[1290,1340,1390,1440].map(x=>c(x,760,30,'#63ad5c')).join('');
+  return svg(u,ambD(u),b+amb(u));
+}
+
+/* ---------- bus interior ---------- */
+function bus(u){
+  const st=nearStrip(u,false),far=(()=>{let s='',x=0;const R=rnd(8);while(x<W){const w=(110+R()*130)|0,h=(200+R()*230)|0,ww=Math.min(w,W-x);s+=r(x,470-h,ww-6,h+90,['#b4c2cc','#c2c6c0','#a9b7c2'][(R()*3)|0]);x+=w}return s})();
+  const scene=cls=>r(0,0,W,H,`url(#${u}sky)`)+`<g transform="translate(0 170) scale(.56)"><g class="${cls}" style="animation-duration:9s">${[0,1600,3200].map(x=>`<g transform="translate(${x} 0)">${far}${st}${r(0,700,1600,200,'#63676e')}</g>`).join('')}</g></g>`;
+  const L=[[40,190,330,246,330,474,40,530],[372,254,562,284,562,452,372,478],[596,290,700,306,700,440,596,452]];
+  const poly=(a,m)=>`<polygon points="${a.map((v,i)=>i%2?v:(m?1600-v:v)).join(' ')}"/>`;
+  const seat=(x,y,w,h,m)=>r(m?1600-x-w:x,y,w,h,'#3f7f6a','rx="'+(w*.12)+'"')+r(m?1600-x-w:x,y,w,h*.16,'#356d5b','rx="'+(w*.1)+'"');
+  const strap=(x,y,s,i,m)=>{const X=m?1600-x:x;return `<g class="swing" style="transform-origin:${X}px ${y}px;animation-delay:${-i*.5}s;animation-duration:1.4s">${ln(`M${X} ${y}V${y+70*s}`,'#6b6250',6*s)}<circle cx="${X}" cy="${y+96*s}" r="${26*s}" fill="none" stroke="#f4f0e4" stroke-width="${9*s}"/></g>`};
+  return svg(u,lg(u+'sky',[[0,'#9fd0e6'],[1,'#f1ead6']])+shadow(u+'sh')+lg(u+'sv',[[0,'#000',0],[1,'#000',.8]],false)+`<clipPath id="${u}wl">${L.map(a=>poly(a)).join('')}</clipPath><clipPath id="${u}wr">${L.map(a=>poly(a,1)).join('')}</clipPath>`,
+   r(0,0,W,H,'#d6ceb6')+`<g class="bob">`
+   +`<g clip-path="url(#${u}wl)">${scene('scroll')}</g><g clip-path="url(#${u}wr)">${scene('scrollR')}</g>`
+   +p('M0 0H1600L900 290H700Z','#e6e0cc')+[0,1,2].map(i=>r(770-i*8,60+i*70,60+i*16,14,'#fff7d6','rx="6" opacity=".9"')).join('')
+   +r(712,296,176,170,'#bfe1ea')+r(700,286,200,14,'#8a8f94')+p('M742 466V400a30 30 0 0 1 60 0V466Z','#4a4038')+c(772,372,20,'#4a4038')+r(700,460,200,104,'#b9ae92')
+   +p('M0 560L700 462V566L0 900Z','#b9ae92')+p('M1600 560L900 462V566L1600 900Z','#b0a58a')+p('M0 900L700 566H900L1600 900Z','#6c675c')+p('M740 566H860L1010 900H590Z','#7d776a')
+   +ln('M250 120L716 300','#b9bcc0',10)+ln('M1350 120L884 300','#b9bcc0',10)
+   +[[300,140,1],[430,190,.75],[540,232,.55],[630,266,.4]].map(([x,y,s],i)=>strap(x,y,s,i)+strap(x,y,s,i+2,1)).join('')
+   +[[10,580,300,330],[330,536,190,230],[532,506,124,160],[660,490,66,104]].map(a=>seat(...a)+seat(...a,1)).join('')
+   +`</g>`);
+}
+
+/* ---------- the fifteen minutes ---------- */
+function clockScene(u,mode){
+  const cx=800,cy=350,R=215,hr={slow:241,fast:244,stop:247.5}[mode];
+  let b=r(0,0,W,H,'#0d1430')+r(0,700,W,200,'#090e22')+r(0,694,W,8,'#1a2348')
+   +r(1150,150,310,380,'#1b2b5c','stroke="#2a355f" stroke-width="14"')+ln('M1305 150V530M1150 340H1460','#2a355f',10)+c(1380,240,34,'#f4eec8')+glow(u,1380,240,70,'#f4eec8','pulseS',.4)
+   +p('M1130 130H1200Q1190 340 1160 560H1130Z','#141c40','class="sway"')+p('M1480 130H1410Q1420 340 1450 560H1480Z','#141c40','class="sway" style="animation-delay:-2s"')
+   +p('M1150 530L1460 530L1200 900H700Z','#8fa6e0','opacity=".08"')
+   +r(90,640,220,160,'#141b3a')+r(130,540,170,104,'#161e40')+r(330,700,180,110,'#131a38')
+   +el(330,600,460,360,`url(#${u}w)`,`opacity="${mode=='stop'?1:.6}" class="pulseS"`)
+   +r(cx-46,cy+R-10,92,190,'#3a2f22','rx="10"')+r(cx-34,cy+R+10,68,160,'#1b1510','rx="6"')+`<g class="${mode=='stop'?'':'pd-'+mode}" style="transform-origin:${cx}px ${cy+R}px">${ln(`M${cx} ${cy+R}V${cy+R+120}`,'#c9a65a',6)}${c(cx,cy+R+128,22,'#e0b65a')}</g>`
+   +c(cx,cy,R+8,'#3a2f22')+c(cx,cy,R,'#c9a65a')+c(cx,cy,R-16,'#f3ecd6')
+   +Array.from({length:60},(_,i)=>{const a=i*6*Math.PI/180,big=i%5==0,r1=R-(big?48:34),r2=R-26;return ln(`M${cx+Math.sin(a)*r1} ${cy-Math.cos(a)*r1}L${cx+Math.sin(a)*r2} ${cy-Math.cos(a)*r2}`,'#33291f',big?7:2)}).join('')
+   +[[12,0,-1],[3,1,0],[6,0,1],[9,-1,0]].map(([n,dx,dy])=>t(cx+dx*(R-84),cy+dy*(R-84)+20,56,n,'#33291f')).join('')
+   +p(`M${cx} ${cy}L${cx+Math.sin(0)*1} ${cy}`,'none')
+   +`<path d="M${cx} ${cy} L${cx} ${cy-R+30} A${R-30} ${R-30} 0 0 1 ${cx+R-30} ${cy} Z" fill="#c8453a" opacity=".13"/>`
+   +`<g style="transform-origin:${cx}px ${cy}px;transform:rotate(${hr}deg)">${r(cx-8,cy-110,16,130,'#33291f','rx="8"')}</g>`
+   +`<g class="mh-${mode}" style="transform-origin:${cx}px ${cy}px">${r(cx-6,cy-170,12,196,'#33291f','rx="6"')}</g>`
+   +(mode=='stop'?'':`<g class="sh-${mode}" style="transform-origin:${cx}px ${cy}px">${r(cx-2,cy-180,4,220,'#c8453a')}</g>`)+c(cx,cy,10,'#c8453a');
+  if(mode=='stop')b+=r(0,0,W,H,`url(#${u}w)`,'class="dawn" style="animation-duration:5s"');
+  return svg(u,rg(u+'w',[[0,'#ffd98a',.3],[1,'#ffd98a',0]]),b);
+}
+
+/* ---------- church courtyard: the covered service yard behind the hall ---------- */
+function yard(u,{now=false}={}){
+  const tube=(x,y,w,h,a)=>`<g transform="rotate(${a} ${x} ${y})">${r(x-8,y-6,w+16,h+12,'#d9d7ce')}${r(x,y,w,h,'#fff')}${el(x+w/2,y+h/2+10,w*.5,h*1.4,'#fff',`opacity=".22" filter="url(#${u}b)" class="pulse"`)}</g>`;
+  const bin=(x,y,w,h,col)=>r(x,y,w,h,col,'rx="6"')+r(x-4,y-8,w+8,14,col,'rx="5"')+r(x-4,y-8,w+8,14,'#000','opacity=".18" rx="5"')+r(x+w*.25,y+h*.3,w*.5,h*.22,'#fff','opacity=".8"');
+  let b=r(0,0,W,H,'#2f3236')
+   // roof: panels, steel beams, pipes
+   +p('M0 0H1600V180L1220 250H380L0 140Z','#b3b1a6')+[[120,0,430,250],[420,0,560,250],[800,0,800,250],[1180,0,1040,250],[1480,0,1170,250]].map(([a,bb,cc,d])=>ln(`M${a} ${bb}L${cc} ${d}`,'#9c9a90',3)).join('')
+   +p('M0 40L1600 70V94L0 62Z','#4a4d50')+p('M0 150L380 236H1220L1600 196V214L1220 252H380L0 170Z','#3d4043')+ln('M300 0L560 250M1340 0L1080 250','#55585c',12)
+   +ln('M0 110Q700 200 1600 128','#8d9399',14)+ln('M0 118Q700 208 1600 136','#6f757b',3)+ln('M520 150L1600 176','#9aa0a6',10)
+   +tube(980,84,540,16,-3)+tube(430,128,170,10,-8)+tube(330,180,90,8,-10)
+   // far end
+   +r(380,250,840,312,'#34363b')+r(380,250,460,312,'#2a2c30')+r(690,290,96,272,'#4a3226')+r(410,300,120,90,'#3f4246')+Array.from({length:6},(_,i)=>ln(`M${420+i*20} 300v90`,'#55585c',3)).join('')
+   +r(840,250,380,312,`url(#${u}br)`)+r(840,250,380,312,`url(#${u}sh)`,'opacity=".45"')+r(900,268,130,120,'#161c1e','stroke="#2b2b2b" stroke-width="8"')+r(1050,268,130,120,'#161c1e','stroke="#2b2b2b" stroke-width="8"')+r(1090,300,60,40,'#f1efe6')
+   +ln('M700 262H1000','#9aa0a6',5)+`<g class="sway">${Array.from({length:9},(_,i)=>p(`M${716+i*30} 264l-12 20h24z`,'none','stroke="#c9ced2" stroke-width="2.5" fill="none"')).join('')}</g>`
+   // side walls
+   +p('M0 140L380 250V562L0 900Z',`url(#${u}br)`)+p('M0 140L380 250V562L0 900Z',`url(#${u}sv)`,'opacity=".5"')
+   +p('M0 150L84 176V330L0 346Z','#2b2f33')+Array.from({length:5},(_,i)=>ln(`M${10+i*17} ${156+i*5}V${342-i*3}`,'#55585c',3)).join('')
+   +c(170,214,34,'#d9d7ce','stroke="#8d9399" stroke-width="5"')+`<g class="moth" style="transform-origin:170px 214px;animation-duration:.5s">${el(170,198,7,16,'#8d9399')}${el(184,224,16,7,'#8d9399','transform="rotate(30 184 224)"')}${el(156,224,16,7,'#8d9399','transform="rotate(-30 156 224)"')}</g>`
+   +p('M96 322L330 350V480L96 520Z','#efede4','stroke="#8d9399" stroke-width="5"')+[[116,346,60,70,'#fbf7ea'],[186,356,54,64,'#f6d98a'],[250,364,60,60,'#fbf7ea'],[122,430,70,60,'#f3b6a8'],[206,430,50,46,'#cfe6ef'],[268,430,50,40,'#fbf7ea']].map(([x,y,w,h,f],i)=>r(x,y,w,h,f,`transform="rotate(${i==2?9:3} ${x} ${y})" stroke="#c9c5b8" stroke-width="1"`)).join('')+r(120,292,170,34,'#2f6b4f','rx="4" transform="rotate(6 120 292)"')+t(205,320,24,'青少年團契','#fbf6e6','transform="rotate(6 205 320)"')
+   +p('M1600 120L1220 250V562L1600 780Z',`url(#${u}br)`)+p('M1600 120L1220 250V562L1600 780Z',`url(#${u}sv)`,'opacity=".35" transform="translate(1600 0) scale(-1 1)"')
+   +p('M1480 290L1600 262V780L1480 690Z','#f4f2e8')+p('M1480 290L1600 262V780L1480 690Z','#fff',`opacity=".5" filter="url(#${u}b)" class="pulseS"`)+p('M1420 730L1480 690L1600 780V840Z','#2f7d4f')
+   // floor
+   +p('M0 900L380 562H1220L1600 780V900Z',`url(#${u}flr)`)+[[700,640,300,34],[420,760,330,50],[1040,820,360,46],[820,720,180,24]].map(([x,y,a,bb])=>el(x,y,a,bb,'#6f6d66','opacity=".45"')+el(x-a*.2,y-bb*.2,a*.5,bb*.3,'#fff','opacity=".12"')).join('')
+   // things in the yard
+   +bike(430,548,.42)+bike(520,552,.42)
+   +bin(560,446,64,112,'#2f8a4f')+bin(636,430,76,128,'#2a5fc0')+bin(712,436,70,122,'#2a5fc0')+bin(800,500,44,62,'#d9742b')+bin(848,498,44,64,'#2f8a4f')
+   +ln('M890 470V570','#8d9399',8)+r(920,468,300,26,`url(#${u}st)`)+r(920,494,300,10,'#8d9399')+r(960,460,150,14,'#9aa0a6','rx="4"')+ln('M932 504V600M1206 504V600','#8d9399',8)+r(932,560,274,8,'#8d9399')
+   +ln('M1040 468V436Q1040 424 1056 424','#9aa0a6',7)+r(1130,430,22,40,'#3fb0a0','rx="5"')+r(1160,424,26,46,'#2f8a5f','rx="6"')+r(1100,440,18,30,'#e2574a','rx="4"')
+   +p('M960 504h34v80h-34z','#e46a9c','class="sway"')+p('M1004 504h30v64h-30z','#d94f86','class="sway" style="animation-delay:-2s"')
+   +`<circle cx="1130" cy="540" r="26" fill="none" stroke="#e2c13b" stroke-width="9"/><circle cx="1130" cy="540" r="14" fill="none" stroke="#d6b42e" stroke-width="7"/>`+r(1230,560,150,80,'#1c1c1c','rx="6"')
+   +sh(u,170,880,230,16,.4)+p('M0 646L270 606L300 640L0 700Z','#3a2a22')+r(262,640,14,150,'#2a1e18')+r(0,696,12,190,'#2a1e18')
+   +r(60,560,40,70,'#e9eef0','rx="8"')+r(70,548,20,14,'#3f6fb0')+r(130,566,30,64,'#2b1a14','rx="8"')+r(136,556,18,12,'#c8372d')+p('M180 560h70l-8 70h-54z','#f2c938')+r(92,520,70,44,'#9cc99a','rx="4"')
+   +`<g fill="none" stroke="#b02a2a" stroke-width="6">${p('M60 760L200 720L230 840L80 880Z','none')}${ln('M60 760L40 700','#b02a2a',6)}</g>`+c(96,884,12,'#2b2b2b')+c(222,848,12,'#2b2b2b')
+   +el(1000,838,44,9,'#000','opacity=".3"')+`<g class="bounce">${c(1000,800,34,'#d9742b')}${ln('M966 800H1034M1000 766V834M978 776Q1000 800 978 824M1022 776Q1000 800 1022 824','#7a3a14',3)}</g>`
+   +p('M0 900L380 562H1220L1600 780V900Z',`url(#${u}fl)`,'opacity=".6"');
+  if(now)b+=ln('M0 250Q800 330 1600 240','#2b2b2b',3)+Array.from({length:22},(_,i)=>{const x=30+i*72,y=248+78*(1-Math.pow((x-800)/800,2));return p(`M${x} ${y}h44l-22 44z`,['#c8453a','#e2a93b','#3f6fb0','#2f7d6b','#f4f0e4'][i%5],`class="sway" style="animation-delay:${-i*.3}s;animation-duration:1.8s"`)+c(x+58,y+6,6,'#ffe9a8',`class="tw" style="animation-delay:${-i*.33}s"`)}).join('');
+  return svg(u,brick(u+'br')+ambD(u)+lg(u+'sv',[[0,'#000',.75],[1,'#000',0]],false)+lg(u+'st',[[0,'#c9ced2'],[.5,'#eef1f2'],[1,'#a9b0b5']],false)+lg(u+'flr',[[0,'#8f8d85'],[1,'#b5b2a8']]),b+amb(u));
+}
+
+/* ---------- a single pool of light ---------- */
+function dark(u){
+  return svg(u,lg(u+'c',[[0,'#f3d9a0',.34],[1,'#f3d9a0',0]]),r(0,0,W,H,'#05060c')+p('M720 0H880L1160 900H440Z',`url(#${u}c)`,'class="pulseS"')+el(800,820,330,60,'#f3d9a0',`filter="url(#${u}g)" opacity=".16"`)+motes(5,26,560,300,480,500));
+}
+
+/* ---------- running order ---------- */
+const ACT=['開場','1 建堂篇','2 我們能做什麼？','3 愛餐篇','4 團契篇','結尾'];
+const SL=[
+ {a:1,n:'片頭卡｜建堂篇',s:u=>card(u,{k:'第一幕',ttl:'建堂篇',sub:'教會在哪裡？'}),cue:'建堂篇開始前，旁白就位。',fx:'飄雪'},
+ {a:1,n:'夜晚的街道（騎機車）',tone:'past',s:u=>street(u),cue:'旁白「聖誕節，我們紀念耶穌來到我們中間」，大陳發動機車。',fx:'街景向後流動、星星'},
+ {a:1,n:'巷子：教會｜馬路｜教練場',tone:'past',s:u=>smallSign(u),cue:'旁白「就在良友汽車教練場旁邊，她看見了一塊招牌」。（教練場就是現在的景華公園）',fx:'車燈掃過招牌'},
+ {a:1,n:'毛胚屋（建商開價）',tone:'past',s:u=>bare(u),cue:'第二場：旁白「有一間房子很合適，離原來教會聚會的地點也近」。',fx:'窗光裡的灰塵、搖晃的燈泡、中間那根柱子'},
+ {a:1,n:'大陳娜娜家的客廳',tone:'past',s:u=>living(u),cue:'第三場：建商退到側邊，大陳翻報紙。第四場續用。',fx:'窗簾、鐘擺、檯燈'},
+ {a:1,n:'毛胚屋（議價）',tone:'past',s:u=>bare(u),cue:'第五場：娜娜「好，去吧。」大陳走向建商。',fx:'光束裡的灰塵'},
+ {a:1,n:'現在的主堂',tone:'reveal',s:u=>sanct(u),cue:'第六場：旁白「後來，教會以四百一十五萬元買下禮拜堂」。',fx:'懷舊色慢慢轉成全彩、十字架背光、中間那根柱子'},
+ {a:1,n:'教會外觀（傍晚）',s:u=>exterior(u),cue:'娜娜與大陳放好「景美教會」招牌。留到詩歌開始。',fx:'招牌亮燈、聖誕燈串、星星'},
+
+ {a:2,n:'片頭卡｜我們能做什麼？',s:u=>card(u,{k:'第二幕',ttl:'我們能做什麼？',sub:'奉獻與探訪'}),cue:'第二幕開始前，旁白就位。',fx:'飄雪'},
+ {a:2,n:'早餐店・清晨',tone:'past',s:u=>breakfast(u),cue:'第一場：燈亮。',fx:'蒸籠與油鍋的蒸氣、天色漸亮'},
+ {a:2,n:'郵局',tone:'past',s:u=>post(u),cue:'小吳「七點了！」匆忙離開之後。',fx:'雲飄過'},
+ {a:2,n:'早餐店・夜晚',tone:'past',s:u=>breakfast(u,{night:true}),cue:'旁白「下班回來，還要繼續做隔天要賣的包子、饅頭」。第二場算帳續用。',fx:'一盞燈、飛蛾'},
+ {a:2,n:'新買的禮拜堂（奉獻）',tone:'past',s:u=>bare(u),cue:'第二場：兩人一起拿起信封，走向奉獻袋。',fx:'光束裡的灰塵'},
+ {a:2,n:'早餐店・夜晚',tone:'past',s:u=>breakfast(u,{night:true}),cue:'小芳回到桌邊「好了。」',fx:'一盞燈'},
+ {a:2,n:'早餐店・清晨',tone:'past',s:u=>breakfast(u),cue:'第三場：牧師推腳踏車進場。',fx:'蒸氣'},
+ {a:2,n:'禱告的光',s:u=>dark(u),cue:'燈光集中在小吳身上：「上帝，我已經有機車……」',fx:'一道光、微塵'},
+ {a:2,n:'良友汽車教練場',tone:'past',s:u=>driving(u),cue:'旁白「小吳到附近的良友汽車教練場報名」。',fx:'紅綠燈變換、彩旗'},
+ {a:2,n:'車窗外的街景',tone:'past',s:u=>street(u,{night:false,frame:true}),cue:'第四場：小吳「坐好了。」',fx:'街景向後流動'},
+ {a:2,n:'早餐店・清晨',tone:'past',s:u=>breakfast(u),cue:'第五場：小芳拿出包子、饅頭裝袋。',fx:'蒸氣'},
+ {a:2,n:'郵局',tone:'past',s:u=>post(u),cue:'旁白「一開始先讓他去巡視郵筒，後來又派他開車送包裹」。',fx:'雲飄過'},
+ {a:2,n:'教會外觀（白天）',tone:'past',s:u=>exterior(u,{dusk:false}),cue:'小吳「那就上車吧。」三人向前走。燈暗後按 B 黑幕。',fx:'樹葉、雲'},
+
+ {a:3,n:'片頭卡｜愛餐篇',s:u=>card(u,{k:'第三幕',ttl:'愛餐篇',sub:'一道菜，一道湯'}),cue:'第三幕開始前，旁白就位。',fx:'飄雪'},
+ {a:3,n:'早期的教會空間',tone:'past',s:u=>sanct(u,{old:true}),cue:'第一場：旁白「一開始，景美教會主日禮拜後還沒有固定的愛餐」。',fx:'窗光、微塵'},
+ {a:3,n:'菜市場與家裡的滷鍋',tone:'past',s:u=>market(u),cue:'李媽「好啦！做做看啦！」音樂轉輕快。',fx:'滷排骨的香氣、爐火、搖晃的燈'},
+ {a:3,n:'早期的教會空間',tone:'past',s:u=>sanct(u,{old:true}),cue:'李媽「飯好了！排骨也好了！」',fx:'窗光'},
+ {a:3,n:'教會廚房（早期）',tone:'past',s:u=>kitchen(u),cue:'第二場：群演把桌椅轉成廚房。一直用到第四場結束。',fx:'大鍋蒸氣、爐火、圍裙晃動'},
+ {a:3,n:'現在的主日愛餐',tone:'reveal',s:u=>kitchen(u,{now:true}),cue:'第五場：旁白「從李媽在家裡滷的第一鍋排骨，到現在四組同工輪流準備愛餐」。',fx:'懷舊色轉全彩、一排熱湯'},
+
+ {a:4,n:'片頭卡｜團契篇',s:u=>card(u,{k:'第四幕',ttl:'團契篇',sub:'跟上帝請假一次'}),cue:'第四幕開始前，旁白就位。',fx:'飄雪'},
+ {a:4,n:'行駛中的公車',tone:'past',s:u=>bus(u),cue:'第一場：旁白「這一家原本在永吉教會聚會」。',fx:'窗外街景、吊環搖晃、車身顛簸'},
+ {a:4,n:'搬家後的新家',tone:'past',s:u=>living(u,{boxes:true}),cue:'燈光轉向舞台右側，小玉與女兒搬紙箱上場。第二場續用。',fx:'窗簾、鐘擺'},
+ {a:4,n:'十五分鐘・時鐘慢慢走',s:u=>clockScene(u,'slow'),cue:'第三場：燈光分成兩區，時鐘聲開始。',fx:'分針慢慢走、鐘擺'},
+ {a:4,n:'十五分鐘・時鐘加快',s:u=>clockScene(u,'fast'),cue:'【時鐘聲稍微加快】小玉「我還能一直替她決定嗎？」之後。',fx:'分針加速走到十五分'},
+ {a:4,n:'十五分鐘・時鐘停下',s:u=>clockScene(u,'stop'),cue:'【時鐘聲停止】小玉慢慢放鬆握緊的手。',fx:'指針停住、暖光亮起'},
+ {a:4,n:'搬家後的新家',tone:'past',s:u=>living(u,{boxes:true}),cue:'第四場：女兒衝回來「十五分鐘到了！」第四場結尾燈暗可按 B，第五場燈亮再按一次。',fx:'窗簾、鐘擺'},
+ {a:4,n:'教會中庭（團契）',tone:'past',s:u=>yard(u),cue:'第五場：舞台另一側亮起，青少年甲乙丙上場傳球。',fx:'日光燈、電風扇、彈跳的球'},
+ {a:4,n:'現在的團契',tone:'reveal',s:u=>yard(u,{now:true}),cue:'家庭2母女上場，所有演員面向觀眾。',fx:'懷舊色轉全彩、彩旗與燈串'},
+
+];
+
+/* ---------- engine: this window is the console; "full-screen show" opens a bare projection window that this window paints directly ---------- */
+const $=id=>document.getElementById(id),app=$('app');
+let cur=-1,uid=0,black=false,motion=true,fade=true,aud=null,solo=false,audWasFull=false;
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const mine={A:$('LA'),B:$('LB'),flip:false,t:0};let theirs=null;
+function paint(T,s,instant){const inn=T.flip?T.A:T.B,out=T.flip?T.B:T.A;T.flip=!T.flip;
+  inn.innerHTML=s.s('s'+(uid++)+'_');inn.className='layer on'+(s.tone?' tone-'+s.tone:'');out.classList.remove('on');
+  clearTimeout(T.t);T.t=setTimeout(()=>{out.innerHTML=''},instant||!fade?0:1500)}
+function show(i,instant){
+  i=Math.max(0,Math.min(SL.length-1,i));if(i===cur)return;cur=i;const s=SL[i];
+  paint(mine,s,instant);if(theirs&&alive())paint(theirs,s,instant);
+  const nx=SL[i+1];
+  $('hNow').textContent=`${ACT[s.a]}｜${s.n}`+(s.fx?`（動態：${s.fx}）`:'');
+  $('hNext').textContent=nx?nx.n:'沒有了';$('hCue').textContent=nx?nx.cue:'已經是最後一張。';
+  const pv=$('PV');if(nx){pv.innerHTML=nx.s('p'+(uid++)+'_');pv.className='layer'+(nx.tone==='past'?' tone-past':'')}else{pv.innerHTML='';pv.className='layer'}
+  $('count').textContent=`${i+1} / ${SL.length}`;store.set('xmas-i',i);
+  document.querySelectorAll('[data-act]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.act===s.a)));
+  if(!$('sheet').hidden)drawSheet();
+}
+const next=()=>show(cur+1),prev=()=>show(cur-1);
+function toast(m,ms){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,ms||5000)}
+const alive=()=>{try{return!!(aud&&!aud.closed&&aud.document)}catch(e){return false}};
+function setMotion(v){motion=!!v;$('bMotion').setAttribute('aria-pressed',String(motion));app.classList.toggle('nomotion',!motion);if(alive())aud.document.body.classList.toggle('nomotion',!motion)}
+function setFade(v){fade=!!v;$('bFade').setAttribute('aria-pressed',String(fade));app.classList.toggle('nofade',!fade);if(alive())aud.document.body.classList.toggle('nofade',!fade);store.set('xmas-fade',fade?1:0)}
+function setBlack(v){black=!!v;$('bBlack').setAttribute('aria-pressed',String(black));$('black').classList.toggle('on',black);if(alive())aud.document.getElementById('black').classList.toggle('on',black)}
+function drawSheet(){let h='<button class="close" id="shClose">關閉</button><h2>換頁表</h2><p>每一列是「換到這一張」的時機。點一列可以直接跳過去。</p>',a=-1;
+  SL.forEach((s,i)=>{if(s.a!==a){a=s.a;h+=`<h3>${ACT[a]}</h3>`}h+=`<button class="row${i===cur?' cur':''}" data-go="${i}"><span>${i+1}</span><span>${s.n}</span><span>${s.cue}</span></button>`});
+  $('sheet').innerHTML=h}
+function sheet(v){const sh=$('sheet');sh.hidden=v!=null?!v:!sh.hidden;if(!sh.hidden)drawSheet()}
+
+/* keys work the same in the console and in the projection window */
+function onKey(e){if(e.metaKey||e.ctrlKey||e.altKey)return;const k=e.key;
+  if(['ArrowRight','ArrowDown','PageDown',' ','Enter'].includes(k)){e.preventDefault();next()}
+  else if(['ArrowLeft','ArrowUp','PageUp','Backspace'].includes(k)){e.preventDefault();prev()}
+  else if(k==='Home')show(0);else if(k==='End')show(SL.length-1);
+  else if(k==='F5'||k==='f'||k==='F'){e.preventDefault();running()?0:startShow()}
+  else if(k==='b'||k==='B'||k==='.')setBlack(!black);else if(k==='t'||k==='T')setFade(!fade);
+  else if(k==='Escape'){if(!$('sheet').hidden)sheet(false);else endShow()}}
+
+/* ---------- the show ---------- */
+const running=()=>solo||alive();
+function label(){$('bShow').textContent=running()?'結束放映':'全螢幕放映'}
+function audFull(){try{const d=aud.document;if(!d.fullscreenElement)d.documentElement.requestFullscreen().catch(()=>{})}catch(e){}}
+let details=null,framed=false;try{framed=window.top!==window}catch(e){framed=true}
+async function startShow(){
+  if(running())return endShow();
+  // find the other display first, so the projection window is born on it
+  let other=null,why='',asked=false;
+  if('getScreenDetails'in window){
+    try{let st='';try{st=(await navigator.permissions.query({name:'window-management'})).state}catch(e){}
+      asked=st==='prompt';if(!details)details=await window.getScreenDetails();
+      other=details.screens.find(s=>s!==details.currentScreen)||null;if(!other)why='one'}catch(e){why='denied'}
+  }else why='nosupport';
+  if(running())return;
+  const f=other?`popup,left=${other.availLeft},top=${other.availTop},width=${other.availWidth},height=${other.availHeight},fullscreen`:`popup,left=${(screen.availLeft||0)+screen.availWidth},top=0,width=1280,height=720`;
+  let w=null;try{w=window.open('','xmas-show',f)}catch(e){}
+  if(!w&&asked&&other){toast('已經可以使用另一個螢幕了。請再按一次「全螢幕放映」。',8000);return}
+  if(!w){ // no second window allowed here: show on this screen instead, like a single-display slide show
+    solo=true;app.classList.add('aud');label();const p=app.requestFullscreen?app.requestFullscreen():Promise.reject();Promise.resolve(p).catch(()=>{});return}
+  aud=w;const css=[...document.querySelectorAll('style')].map(s=>s.textContent).find(c=>c.includes('.layer{'))||'';
+  w.document.open();w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>投影畫面</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&display=swap"><style>${css}</style><style>html,body{height:100%;margin:0;background:#000;overflow:hidden}.stage{position:absolute;inset:0;margin:auto;width:min(100vw,calc(100vh*16/9));max-width:none;border-radius:0;cursor:none}</style></head><body class="${motion?'':'nomotion'}${fade?'':' nofade'}"><div class="stage"><div class="layer" id="LA"></div><div class="layer" id="LB"></div><div class="grain"></div><div class="shade"></div><div class="black${black?' on':''}" id="black"></div></div></body></html>`);w.document.close();
+  theirs={A:w.document.getElementById('LA'),B:w.document.getElementById('LB'),flip:false,t:0};paint(theirs,SL[cur],true);
+  w.addEventListener('keydown',onKey);
+  w.addEventListener('click',()=>{if(w.document.fullscreenElement)next();else audFull()});
+  w.document.addEventListener('fullscreenchange',()=>{if(w.document.fullscreenElement)audWasFull=true;else if(audWasFull)endShow()});
+  audWasFull=false;label();
+  try{if(other){w.moveTo(other.availLeft,other.availTop);w.resizeTo(other.availWidth,other.availHeight)}}catch(e){}
+  try{await w.document.documentElement.requestFullscreen(other?{screen:other}:undefined);return}catch(e){}
+  setTimeout(()=>{if(!alive()||aud.document.fullscreenElement)return;
+    toast(other?'投影視窗已經放到另一個螢幕。在投影畫面上點一下，它就會全螢幕。'
+      :why==='denied'?(framed?'這個頁面現在是嵌在別的網頁裡，瀏覽器不讓它使用另一個螢幕。請把它放到 https 網址（例如 GitHub Pages）單獨開啟。':location.protocol==='file:'?'直接打開檔案時，瀏覽器不讓頁面使用另一個螢幕。請把它放到 https 網址（例如 GitHub Pages）再開啟。':'瀏覽器沒有允許這個頁面使用另一個螢幕。請點網址列左邊的圖示，把「視窗管理」改成允許，再按一次全螢幕放映。')
+      :why==='one'?'只偵測到一個螢幕。請確認投影機設定成「延伸」而不是「同步顯示」，再按一次全螢幕放映。'
+      :'這個瀏覽器不能自動把視窗放到另一個螢幕，請改用 Chrome 或 Edge。現在可以先把投影視窗拖過去，在上面點一下就會全螢幕。',12000)},600);
+}
+function endShow(){
+  if(solo){solo=false;app.classList.remove('aud');if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}
+  if(aud){try{aud.close()}catch(e){}}aud=null;theirs=null;label()}
+setInterval(()=>{if(aud&&!alive()){aud=null;theirs=null;label()}},1000);
+document.addEventListener('fullscreenchange',()=>{if(solo&&!document.fullscreenElement)endShow()});
+addEventListener('pagehide',()=>{try{aud&&aud.close()}catch(e){}});
+
+$('bNext').onclick=next;$('bPrev').onclick=prev;$('bShow').onclick=startShow;$('bList').onclick=()=>sheet();
+$('bMotion').onclick=()=>setMotion(!motion);$('bFade').onclick=()=>setFade(!fade);$('bBlack').onclick=()=>setBlack(!black);
+document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>show(SL.findIndex(s=>s.a===+b.dataset.act)));
+$('sheet').onclick=e=>{const g=e.target.closest('[data-go]');if(g){show(+g.dataset.go);sheet(false)}else if(e.target.id==='shClose')sheet(false)};
+$('stage').onclick=e=>{const b=$('stage').getBoundingClientRect();(e.clientX-b.left<b.width*.3)?prev():next()};
+let tx=null;$('stage').addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
+$('stage').addEventListener('touchend',e=>{if(tx==null)return;const d=e.changedTouches[0].clientX-tx;tx=null;if(Math.abs(d)>50){e.preventDefault();d<0?next():prev()}});
+addEventListener('keydown',onKey);
+let idleT;const wake=()=>{app.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>app.classList.add('idle'),2600)};
+addEventListener('mousemove',wake);addEventListener('touchstart',wake,{passive:true});wake();
+try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}
+
+setFade(store.get('xmas-fade','1')!=='0');
+setMotion(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches));
+show(Math.min(SL.length-1,+store.get('xmas-i',0)||0),true);
+</script>
+
+</body>
+</html>
