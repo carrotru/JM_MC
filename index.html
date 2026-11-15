@@ -46,6 +46,22 @@ body{background:var(--booth);color:var(--ink);font-family:var(--ui);font-size:15
 .pvbox *{animation-play-state:paused!important}
 .cue{font-family:var(--display);font-size:20px;line-height:1.5;text-wrap:balance;margin-top:4px}
 #hNow{margin-top:4px;line-height:1.5}
+.snd{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.snd input{width:110px;accent-color:var(--gold)}
+.tracks{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1;min-width:0}
+.trk{position:relative;padding:6px 12px 14px;text-align:left;display:flex;gap:10px;align-items:baseline}
+.trk b{color:var(--gold);margin-right:2px}
+.trk .tm{font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums}
+.pb{position:absolute;left:10px;right:10px;bottom:6px;height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.pb>i{display:block;height:100%;width:0;background:var(--gold)}
+.trk.loop .pb>i{width:100%;background:repeating-linear-gradient(90deg,var(--gold) 0 10px,transparent 10px 20px);background-size:20px 100%;animation:stripe .6s linear infinite}
+.snd.paused .trk.loop .pb>i{animation-play-state:paused}
+@keyframes stripe{to{background-position:20px 0}}
+.sndtop{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-bottom:8px}
+.sndtop input{flex:1;min-width:80px;accent-color:var(--gold)}
+.fx{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.fx button{text-align:left}
+.fx button b{display:inline-block;min-width:1.4em;color:var(--gold)}
 .ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 button{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;cursor:pointer}
 button:hover{border-color:var(--dim)}
@@ -143,11 +159,12 @@ button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
     </aside>
   </div>
   <div class="bar">
+    <div class="snd" id="sndRow"><button id="bPause" aria-pressed="false">⏸ 暫停聲音</button><label class="lab" for="rVol">音量</label><input id="rVol" type="range" min="0" max="1" step="0.05" value="0.7"><span class="tracks" id="sFx"></span></div>
     <div class="ctrl">
       <button id="bPrev" aria-label="上一張">◀ 上一張</button>
       <button id="bNext" class="big" aria-label="下一張">下一張 ▶</button>
       <span class="count" id="count"></span>
-      <button data-act="1">1 建堂</button><button data-act="2">2 奉獻</button><button data-act="3">3 愛餐</button><button data-act="4">4 團契</button>
+      <button data-act="1">1 建堂</button><button data-act="2">2 關懷</button><button data-act="3">3 愛餐</button><button data-act="4">4 兒女</button>
       <span class="sp"></span>
       <button id="bList">換頁表</button>
       <button id="bFade" aria-pressed="true">淡入淡出</button>
@@ -155,7 +172,7 @@ button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
       <button id="bBlack" aria-pressed="false">黑幕</button>
       <button id="bShow" class="big">全螢幕放映</button>
     </div>
-    <div class="keys">← → 或空白鍵換頁（簡報筆也可以）　F5 或 F 開始放映　Esc 結束放映　B 黑幕　T 淡入淡出</div>
+    <div class="keys">← → 或空白鍵換頁（簡報筆也可以）　F5 或 F 開始放映　Esc 結束放映　B 黑幕　T 淡入淡出　0 環境音　1–6 音效　S 暫停／繼續聲音</div>
   </div>
   <div class="sheet" id="sheet" hidden></div>
 </div>
@@ -474,26 +491,66 @@ function market(u){
    +`</g>`);
 }
 
-/* ---------- church kitchen ---------- */
+/* ---------- church kitchen: narrow galley seen from the doorway ---------- */
 function kitchen(u,{now=false}={}){
-  const bowl=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})">${p('M-34 0Q0 44 34 0Z','#fbf6e6','stroke="#c9c2ae" stroke-width="3"')}${el(0,0,34,9,'#f1e7c8')}</g>`;
-  let b=r(0,0,W,620,now?'#e3ebe8':'#d9dccf')+Array.from({length:20},(_,i)=>ln(`M${i*80} 0V620`,now?'#cbd6d3':'#c4c7b8',3)).join('')+Array.from({length:8},(_,i)=>ln(`M0 ${i*80}H1600`,now?'#cbd6d3':'#c4c7b8',3)).join('')
-   +r(1150,110,330,220,'#cfe6ef','stroke="#fbf6e6" stroke-width="12"')+ln('M1315 110V330','#fbf6e6',8)
-   +r(120,214,560,14,'#8a6540')+[160,230,300].map(x=>bowl(x,206,.9)+bowl(x,190,.9)+bowl(x,174,.9)).join('')+r(400,134,34,80,'#33241a','rx="6"')+r(456,150,44,64,'#c8453a','rx="6"')+r(520,160,56,54,'#e6c283','rx="8"')+r(600,140,30,74,'#2f6b4f','rx="6"')
-   +r(720,180,380,8,'#777')+[760,820,880].map((x,i)=>`<g class="swing" style="transform-origin:${x}px 184px;animation-delay:${-i*.8}s;animation-duration:4s">${ln(`M${x} 184V290`,'#8a8f94',6)}${i==1?r(x-16,290,32,50,'#8a8f94','rx="6"'):c(x,306,22,'#8a8f94')}</g>`).join('')
-   +[960,1040].map((x,i)=>`<g class="sway" style="animation-delay:${-i*2}s">${p(`M${x-10} 184h20l30 60v120h-80v-120z`,i?'#3f6fb0':'#c8453a')}${r(x-18,280,36,30,i?'#345c94':'#a8372d','rx="4"')}</g>`).join('')
-   +r(0,0,W,160,`url(#${u}sh)`,'opacity=".2"')+r(0,600,W,44,'#9aa0a4')+r(0,600,W,9,'#fff','opacity=".4"')+r(0,644,W,256,now?'#b9c0c2':'#b0a48c')+r(0,644,W,60,`url(#${u}sh)`,'opacity=".55"')+r(0,700,W,200,`url(#${u}fl)`)
-   +[360,440,520,600,680].map((x,i)=>p(`M${x} 648q-16 -24 0 -46q16 22 0 46z`,'#f08a3c',`class="flame" style="animation-delay:${-i*.11}s"`)+p(`M${x} 648q-8 -12 0 -24q8 12 0 24z`,'#f6d98a',`class="flame" style="animation-delay:${-i*.17}s"`)).join('')
-   +p('M270 540Q520 700 770 540Z','#2b2b2b')+el(520,540,250,50,'#3a3a3a')+el(520,542,226,40,'#b5651d')+[400,470,540,610,660,450,580].map((x,i)=>el(x,536+(i%3)*8,26,9,i%2?'#4f9a54':'#e8a23c')).join('')+r(226,528,50,18,'#2b2b2b','rx="9"')+r(764,528,50,18,'#2b2b2b','rx="9"')
-   +ln('M640 520L790 380','#8a6540',12)+steam(u,520,500,5,84,'#fff',1.7,6)
-   +r(880,410,230,196,'#c9ced2','rx="14"')+el(995,412,115,24,'#e3e7ea')+el(995,414,100,17,'#d9b06a')+r(852,450,34,16,'#9aa0a4','rx="8"')+r(1104,450,34,16,'#9aa0a4','rx="8"')+steam(u,995,392,3,60,'#fff',1.2,5)
-   +r(1210,560,320,44,'#dfe4e6','rx="8"')+ln('M1470 560V470Q1470 440 1430 440','#8a8f94',12)+r(1240,486,190,84,'#3f8a5a','rx="16" opacity=".9"')+[1262,1300,1338,1376,1408].map((x,i)=>c(x,486,24,i%2?'#63ad5c':'#4f9a54')).join('');
-  if(now)b+=p('M300 60H740L800 250H240Z','#b8bdc2')+r(240,250,560,16,'#9aa0a4')+r(100,40,0,0,'none')
-   +r(900,60,220,84,'#c8372d','rx="6"')+t(1010,122,58,'愛　餐','#fbe7a8')
-   +r(60,770,1480,34,'#f4f0e4')+r(60,804,1480,96,'#e3ddcc')+Array.from({length:10},(_,i)=>bowl(170+i*140,770,1.25)+steam(u,170+i*140,756,1,0,'#fff',.6,4+i%3)).join('');
-  else b+=`<g class="swing" style="transform-origin:800px 0px">${ln('M800 0V96','#333',4)}${c(800,112,20,'#fff3c4')}${glow(u,800,112,80,'#ffe9a8','pulse',.5)}</g>`
-   +r(80,740,220,150,'#c69a5d','stroke="#9a7440" stroke-width="3"')+r(1260,760,230,110,'#3f8a5a','rx="18" opacity=".9"')+[1290,1340,1390,1440].map(x=>c(x,760,30,'#63ad5c')).join('');
-  return svg(u,ambD(u),b+amb(u));
+  const tiles=`<pattern id="${u}tw" width="34" height="34" patternUnits="userSpaceOnUse"><rect width="34" height="34" fill="#c9c6bb"/><rect x="1.5" y="1.5" width="31" height="31" fill="#eeebe2"/></pattern><pattern id="${u}tf" width="46" height="24" patternUnits="userSpaceOnUse"><rect width="46" height="24" fill="#b9b6ad"/><rect x="1.5" y="1.5" width="43" height="21" fill="#e6e3d9"/></pattern>`;
+  const steel=lg(u+'stl',[[0,'#e9ecee'],[.5,'#b9bfc4'],[1,'#8d9399']]),steelH=lg(u+'sth',[[0,'#d5d9dc'],[.5,'#f2f4f5'],[1,'#a3a9ae']],false);
+  const bowl=(x,y,s=1)=>`<g transform="translate(${x} ${y}) scale(${s})">${p('M-26 0Q0 34 26 0Z','#fbf6e6','stroke="#c9c2ae" stroke-width="2"')}${el(0,0,26,7,'#f1e7c8')}</g>`;
+  const pan=(cx,cy,rx,ry,h)=>r(cx-rx,cy-h,rx*2,h,`url(#${u}sth)`)+el(cx,cy,rx,ry,'#9aa0a6')+el(cx,cy-h,rx,ry,'#dfe3e6','stroke="#8d9399" stroke-width="3"')+el(cx,cy-h,rx-10,ry-4,'#c4c9cd');
+  let b=r(0,0,W,H,'#2a2d30')
+   // ceiling: panels converging on the back wall
+   +p('M300 0H1330L1040 214H872Z','#d7d9d6')+[[480,0,890,214],[700,0,940,214],[930,0,985,214],[1150,0,1020,214]].map(([a,bb,cc,d])=>ln(`M${a} ${bb}L${cc} ${d}`,'#b5b8b4',3)).join('')+[60,120,175].map(y=>{const k=y/214;return ln(`M${300+572*k} ${y}H${1330-290*k}`,'#b5b8b4',3)}).join('')
+   +ln('M520 150H1010','#a7aba7',6)
+   // back wall
+   +r(872,212,164,446,`url(#${u}tw)`)+r(872,212,164,80,`url(#${u}sh)`,'opacity=".25"')+r(1000,250,24,40,'#cfccc3')+ln('M1012 290V560','#9aa0a4',4)
+   // left wall above the counter
+   +p('M300 0L872 212V520L400 700V0Z',`url(#${u}tw)`)+p('M300 0L872 212V520L400 700V0Z',`url(#${u}sv)`,'opacity=".25"')
+   +p('M350 410L600 395L600 590L350 650Z','#a9d3d6')+[[400,450],[470,440],[540,432],[420,520],[500,505],[570,495],[440,595],[520,580]].map(([x,y])=>el(x,y,22,12,'#e8f4f2','opacity=".9"')).join('')+ln('M352 560Q420 600 470 640','#b8a66a',3,'opacity=".5"')
+   // green duct and range hood
+   +ln('M280 30L470 120Q500 136 505 170V270','#2f6b5b',58)+ln('M280 16L470 106','#3f8a75',10,'opacity=".6"')+r(476,215,58,22,'#e9ece6')
+   +p('M380 268H560L690 330L688 360L352 352L352 300Z',`url(#${u}stl)`)+p('M352 345L688 352L688 362L352 356Z','#8d9399')+[620,640,660].map(x=>c(x,343,4,'#6b7075')).join('')
+   // upper cabinets
+   +p('M560 196L640 204V386L560 372Z','#c9a77c')+p('M640 204L872 240V382L640 386Z','#e2c79e')+p('M640 204L872 240V250L640 216Z','#000','opacity=".08"')
+   +[698,756,814].map(x=>ln(`M${x} ${204+36*(x-640)/232}V${385}`,'#b38f62',3)).join('')+[670,728,786,844].map(x=>r(x-12,362,24,6,'#8d9399','rx="3"')).join('')
+   +r(586,268,46,24,'#fbf7ea')+t(609,286,15,'蜂蜜','#33291f')+r(660,262,60,74,'#cfe6f2','stroke="#7fa7c0" stroke-width="2"')+[0,1,2,3,4].map(i=>ln(`M668 ${276+i*12}h44`,'#7fa7c0',2)).join('')
+   +p('M650 186Q700 160 760 190L760 204H650Z','#3f6fb0')+el(700,186,40,12,'#e9eef7','opacity=".7"')
+   +ln('M600 400H880','#8d9399',3)+[650,700].map(x=>ln(`M${x} 400V430`,'#5a5e62',3)).join('')+`<circle cx="712" cy="470" r="22" fill="none" stroke="#8d9399" stroke-width="3"/>`
+   // counter: stainless top, light-wood doors
+   +p('M470 598L880 500L905 512L395 690Z',`url(#${u}sth)`)+p('M395 690L905 512V528L400 706Z','#7d8388')
+   +p('M400 706L905 528V656L400 868Z','#e0c49a')+p('M400 706L905 528V540L400 720Z','#000','opacity=".12"')
+   +[[400,520],[520,640],[640,760],[760,905]].map(([a,bb])=>{const y=x=>706+(528-706)*(x-400)/505,yb=x=>868+(656-868)*(x-400)/505;return ln(`M${bb} ${y(bb)}V${yb(bb)}`,'#b38f62',3)+ln(`M${(a+bb)/2-14} ${y((a+bb)/2)+18}h28`,'#8d9399',4)}).join('')
+   +r(445,744,84,26,'#fbf7ea','transform="rotate(-19 487 757)"')+t(487,764,17,'備用鐵盤','#33291f','transform="rotate(-19 487 757)"')
+   +el(770,560,64,15,'#7d8388')+el(770,558,56,11,'#b9bfc4')+ln('M735 556V520Q735 500 755 500H770V520','#c9ced2',7)+r(724,520,22,40,'#c86a9a','rx="6" opacity=".85"')
+   +r(612,538,22,50,'#e8822a','rx="6"')+r(618,526,10,14,'#f4f0e4')
+   // red rice cooker
+   +r(812,472,64,46,'#d9452f','rx="12"')+r(812,472,64,46,`url(#${u}sv)`,'opacity=".3" rx="12"')+el(844,472,32,9,'#c9ced2','stroke="#8d9399" stroke-width="2"')+r(840,456,8,12,'#33291f','rx="3"')+r(830,500,28,6,'#f4f0e4','rx="3"')
+   // gas stove with a big pot on it
+   +p('M395 612L630 580L690 600L455 640Z','#e9e9e4')+p('M455 640L690 600V650L455 700Z','#f4f4f0')+p('M395 612L455 640V700L395 672Z','#d3d3cd')+c(520,670,10,'#33291f')+c(640,638,10,'#33291f')
+   +el(480,622,44,13,'#2b2b2b')+el(600,600,40,12,'#2b2b2b')
+   +[456,470,484,498].map((x,i)=>p(`M${x} 620q-6 -12 0 -22q6 10 0 22z`,'#5aa9e6',`class="flame" style="animation-delay:${-i*.13}s"`)).join('')
+   +pan(600,600,62,16,74)+el(600,526,62,16,now?'#c08a45':'#b5651d')+steam(u,600,500,3,46,'#fff',1.2,6)+ln('M650 520L700 470','#6b4a2e',8)
+   // floor
+   +p('M400 868L905 656H935V900H560Z',`url(#${u}tf)`)+p('M400 868L905 656H935V900H560Z',`url(#${u}fl)`)
+   // right: wire rack with steamers, and the dark freezer
+   +ln('M1018 210V470M1270 196V470','#a9b0b5',8)+ln('M1018 238H1270M1018 444H1270','#a9b0b5',6)+Array.from({length:12},(_,i)=>ln(`M${1030+i*20} 238L${1024+i*20} 250`,'#a9b0b5',2)).join('')
+   +pan(1150,236,104,22,58)+pan(1146,178,100,20,56)+pan(1142,122,94,18,50)+r(1210,40,70,70,'#3f6fb0','rx="14" opacity=".9"')
+   +p('M1060 440Q1150 368 1240 440Z',`url(#${u}stl)`)+el(1150,440,92,12,'#8d9399')+el(1120,400,40,18,'#c9ced2')+el(1180,380,36,16,'#b9bfc4')
+   +p('M1196 300Q1240 220 1330 238L1342 410Q1260 430 1200 400Z','#f2b6c8','opacity=".88"')+p('M1222 320Q1270 280 1320 300','none','stroke="#e48aa8" stroke-width="3"')
+   +p('M916 476L1236 470L1272 456L950 462Z','#55585c')+r(916,476,320,424,'#3a3c40')+r(916,476,320,424,`url(#${u}sv)`,'opacity=".35"')+p('M1236 470L1272 456V900H1236Z','#2a2c2f')
+   +r(990,520,184,250,'#f6f5ef')+r(1000,530,120,10,'#33291f')+Array.from({length:12},(_,i)=>ln(`M1000 ${560+i*16}H1164`,'#9a958a',1.5)).join('')+Array.from({length:4},(_,i)=>ln(`M${1040+i*36} 552V752`,'#9a958a',1.5)).join('')+c(1080,760,7,'#e3e3e3')
+   +r(940,560,36,120,'#f6f5ef')+r(1206,490,40,16,'#e8b5c9','rx="4"')
+   // right wall, pipe and switch box
+   +p('M1272 0H1600V900H1272V196Z',`url(#${u}tw)`)+p('M1272 0H1600V900H1272Z',`url(#${u}sv)`,'opacity=".3" transform="translate(2872 0) scale(-1 1)"')
+   +ln('M1360 0V900','#7d8388',14)+ln('M1354 0V900','#a9b0b5',4)+r(1380,305,72,175,'#e2ddcf')+r(1380,305,72,175,`url(#${u}sh)`,'opacity=".2"')+ln('M1360 380H1380','#33291f',8)
+   // doorway frame in the foreground
+   +r(0,0,170,900,'#3b4248')+r(0,0,170,900,`url(#${u}sv)`,'opacity=".3"')+p('M150 0H300L384 900H230Z','#4a3328')+p('M282 0H300L384 900H366Z','#2b1e17')+p('M150 0H170L250 900H230Z','#5f4434')
+   +p('M60 790L190 770L220 900H70Z','#e2349a')+p('M70 840L210 820L220 860L80 880Z','#2b2b2b','opacity=".5"')
+   // the bulb and the wall fan
+   +ln('M868 116V130','#6b6250',4)+c(868,140,14,'#fff6d0')+glow(u,868,146,34,'#ffe9a8','pulse',.5)+p('M820 150L916 150L1010 520H720Z','#fff3c4','opacity=".07"')
+   +r(946,330,12,90,'#e8e8e2')+c(952,268,58,'#f4f4f0','stroke="#c9ced2" stroke-width="5"')+`<g class="moth" style="transform-origin:952px 268px;animation-duration:.45s">${el(952,236,10,28,'#7fa7c0','opacity=".7"')}${el(980,284,10,28,'#7fa7c0','opacity=".7" transform="rotate(120 980 284)"')}${el(924,284,10,28,'#7fa7c0','opacity=".7" transform="rotate(-120 924 284)"')}</g>`+c(952,268,12,'#3f6fb0')+Array.from({length:6},(_,i)=>ln(`M952 268L${952+58*Math.cos(i*Math.PI/3)} ${268+58*Math.sin(i*Math.PI/3)}`,'#c9ced2',2)).join('');
+  if(now)b+=r(668,150,150,46,'#c8372d','rx="4"')+t(743,184,32,'愛　餐','#fbe7a8')
+   +[450,520,590,660,730,800,870].map((x,i)=>{const y=706+(528-706)*(x-400)/505-6;return bowl(x,y,.9)+steam(u,x,y-10,1,0,'#fff',.5,4+i%3)}).join('');
+  return svg(u,tiles+steel+steelH+ambD(u)+lg(u+'sv',[[0,'#000',.75],[1,'#000',0]],false),b+amb(u));
 }
 
 /* ---------- bus interior ---------- */
@@ -551,7 +608,7 @@ function yard(u,{now=false}={}){
    // far end
    +r(380,250,840,312,'#34363b')+r(380,250,460,312,'#2a2c30')+r(690,290,96,272,'#4a3226')+r(410,300,120,90,'#3f4246')+Array.from({length:6},(_,i)=>ln(`M${420+i*20} 300v90`,'#55585c',3)).join('')
    +r(840,250,380,312,`url(#${u}br)`)+r(840,250,380,312,`url(#${u}sh)`,'opacity=".45"')+r(900,268,130,120,'#161c1e','stroke="#2b2b2b" stroke-width="8"')+r(1050,268,130,120,'#161c1e','stroke="#2b2b2b" stroke-width="8"')+r(1090,300,60,40,'#f1efe6')
-   +ln('M700 262H1000','#9aa0a6',5)+`<g class="sway">${Array.from({length:9},(_,i)=>p(`M${716+i*30} 264l-12 20h24z`,'none','stroke="#c9ced2" stroke-width="2.5" fill="none"')).join('')}</g>`
+   +ln('M700 262H1000','#9aa0a6',5)+`<g class="sway">${Array.from({length:9},(_,i)=>p(`M${716+i*30} 264l-12 20h24z`,'none','stroke="#c9ced2" stroke-width="2.5"')).join('')}</g>`
    // side walls
    +p('M0 140L380 250V562L0 900Z',`url(#${u}br)`)+p('M0 140L380 250V562L0 900Z',`url(#${u}sv)`,'opacity=".5"')
    +p('M0 150L84 176V330L0 346Z','#2b2f33')+Array.from({length:5},(_,i)=>ln(`M${10+i*17} ${156+i*5}V${342-i*3}`,'#55585c',3)).join('')
@@ -570,7 +627,7 @@ function yard(u,{now=false}={}){
    +`<circle cx="1130" cy="540" r="26" fill="none" stroke="#e2c13b" stroke-width="9"/><circle cx="1130" cy="540" r="14" fill="none" stroke="#d6b42e" stroke-width="7"/>`+r(1230,560,150,80,'#1c1c1c','rx="6"')
    +sh(u,170,880,230,16,.4)+p('M0 646L270 606L300 640L0 700Z','#3a2a22')+r(262,640,14,150,'#2a1e18')+r(0,696,12,190,'#2a1e18')
    +r(60,560,40,70,'#e9eef0','rx="8"')+r(70,548,20,14,'#3f6fb0')+r(130,566,30,64,'#2b1a14','rx="8"')+r(136,556,18,12,'#c8372d')+p('M180 560h70l-8 70h-54z','#f2c938')+r(92,520,70,44,'#9cc99a','rx="4"')
-   +`<g fill="none" stroke="#b02a2a" stroke-width="6">${p('M60 760L200 720L230 840L80 880Z','none')}${ln('M60 760L40 700','#b02a2a',6)}</g>`+c(96,884,12,'#2b2b2b')+c(222,848,12,'#2b2b2b')
+   +p('M60 760L200 720L230 840L80 880Z','none','stroke="#b02a2a" stroke-width="6"')+ln('M60 760L40 700','#b02a2a',6)+c(96,884,12,'#2b2b2b')+c(222,848,12,'#2b2b2b')
    +el(1000,838,44,9,'#000','opacity=".3"')+`<g class="bounce">${c(1000,800,34,'#d9742b')}${ln('M966 800H1034M1000 766V834M978 776Q1000 800 978 824M1022 776Q1000 800 1022 824','#7a3a14',3)}</g>`
    +p('M0 900L380 562H1220L1600 780V900Z',`url(#${u}fl)`,'opacity=".6"');
   if(now)b+=ln('M0 250Q800 330 1600 240','#2b2b2b',3)+Array.from({length:22},(_,i)=>{const x=30+i*72,y=248+78*(1-Math.pow((x-800)/800,2));return p(`M${x} ${y}h44l-22 44z`,['#c8453a','#e2a93b','#3f6fb0','#2f7d6b','#f4f0e4'][i%5],`class="sway" style="animation-delay:${-i*.3}s;animation-duration:1.8s"`)+c(x+58,y+6,6,'#ffe9a8',`class="tw" style="animation-delay:${-i*.33}s"`)}).join('');
@@ -583,7 +640,7 @@ function dark(u){
 }
 
 /* ---------- running order ---------- */
-const ACT=['開場','1 建堂篇','2 我們能做什麼？','3 愛餐篇','4 團契篇','結尾'];
+const ACT=['開場','1 建堂篇','2 關懷篇','3 愛餐篇','4 兒女篇','結尾'];
 const SL=[
  {a:1,n:'片頭卡｜建堂篇',s:u=>card(u,{k:'第一幕',ttl:'建堂篇',sub:'教會在哪裡？'}),cue:'建堂篇開始前，旁白就位。',fx:'飄雪'},
  {a:1,n:'夜晚的街道（騎機車）',tone:'past',s:u=>street(u),cue:'旁白「聖誕節，我們紀念耶穌來到我們中間」，大陳發動機車。',fx:'街景向後流動、星星'},
@@ -594,7 +651,7 @@ const SL=[
  {a:1,n:'現在的主堂',tone:'reveal',s:u=>sanct(u),cue:'第六場：旁白「後來，教會以四百一十五萬元買下禮拜堂」。',fx:'懷舊色慢慢轉成全彩、十字架背光、中間那根柱子'},
  {a:1,n:'教會外觀（傍晚）',s:u=>exterior(u),cue:'娜娜與大陳放好「景美教會」招牌。留到詩歌開始。',fx:'招牌亮燈、聖誕燈串、星星'},
 
- {a:2,n:'片頭卡｜我們能做什麼？',s:u=>card(u,{k:'第二幕',ttl:'我們能做什麼？',sub:'奉獻與探訪'}),cue:'第二幕開始前，旁白就位。',fx:'飄雪'},
+ {a:2,n:'片頭卡｜關懷篇',s:u=>card(u,{k:'第二幕',ttl:'關懷篇',sub:'我們能做什麼？'}),cue:'第二幕開始前，旁白就位。',fx:'飄雪'},
  {a:2,n:'早餐店・清晨',tone:'past',s:u=>breakfast(u),cue:'第一場：燈亮。',fx:'蒸籠與油鍋的蒸氣、天色漸亮'},
  {a:2,n:'郵局',tone:'past',s:u=>post(u),cue:'小吳「七點了！」匆忙離開之後。',fx:'雲飄過'},
  {a:2,n:'早餐店・夜晚',tone:'past',s:u=>breakfast(u,{night:true}),cue:'旁白「下班回來，還要繼續做隔天要賣的包子、饅頭」。第二場算帳續用。',fx:'一盞燈、飛蛾'},
@@ -612,10 +669,10 @@ const SL=[
  {a:3,n:'早期的教會空間',tone:'past',s:u=>sanct(u,{old:true}),cue:'第一場：旁白「一開始，景美教會主日禮拜後還沒有固定的愛餐」。',fx:'窗光、微塵'},
  {a:3,n:'菜市場與家裡的滷鍋',tone:'past',s:u=>market(u),cue:'李媽「好啦！做做看啦！」音樂轉輕快。',fx:'滷排骨的香氣、爐火、搖晃的燈'},
  {a:3,n:'早期的教會空間',tone:'past',s:u=>sanct(u,{old:true}),cue:'李媽「飯好了！排骨也好了！」',fx:'窗光'},
- {a:3,n:'教會廚房（早期）',tone:'past',s:u=>kitchen(u),cue:'第二場：群演把桌椅轉成廚房。一直用到第四場結束。',fx:'大鍋蒸氣、爐火、圍裙晃動'},
- {a:3,n:'現在的主日愛餐',tone:'reveal',s:u=>kitchen(u,{now:true}),cue:'第五場：旁白「從李媽在家裡滷的第一鍋排骨，到現在四組同工輪流準備愛餐」。',fx:'懷舊色轉全彩、一排熱湯'},
+ {a:3,n:'教會廚房（早期）',tone:'past',s:u=>kitchen(u),cue:'第二場：群演把桌椅轉成廚房。一直用到第四場結束。',fx:'大鍋蒸氣、爐火、電風扇轉動、燈泡'},
+ {a:3,n:'現在的主日愛餐',tone:'reveal',s:u=>kitchen(u,{now:true}),cue:'第五場：旁白「從李媽在家裡滷的第一鍋排骨，到現在四組同工輪流準備愛餐」。',fx:'懷舊色轉全彩、一排熱湯、電風扇轉動'},
 
- {a:4,n:'片頭卡｜團契篇',s:u=>card(u,{k:'第四幕',ttl:'團契篇',sub:'跟上帝請假一次'}),cue:'第四幕開始前，旁白就位。',fx:'飄雪'},
+ {a:4,n:'片頭卡｜兒女篇',s:u=>card(u,{k:'第四幕',ttl:'兒女篇',sub:'跟上帝請假一次'}),cue:'第四幕開始前，旁白就位。',fx:'飄雪'},
  {a:4,n:'行駛中的公車',tone:'past',s:u=>bus(u),cue:'第一場：旁白「這一家原本在永吉教會聚會」。',fx:'窗外街景、吊環搖晃、車身顛簸'},
  {a:4,n:'搬家後的新家',tone:'past',s:u=>living(u,{boxes:true}),cue:'燈光轉向舞台右側，小玉與女兒搬紙箱上場。第二場續用。',fx:'窗簾、鐘擺'},
  {a:4,n:'十五分鐘・時鐘慢慢走',s:u=>clockScene(u,'slow'),cue:'第三場：燈光分成兩區，時鐘聲開始。',fx:'分針慢慢走、鐘擺'},
@@ -631,6 +688,129 @@ const SL=[
 const $=id=>document.getElementById(id),app=$('app');
 let cur=-1,uid=0,black=false,motion=true,fade=true,aud=null,solo=false,audWasFull=false;
 const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+/* ---------- sound: everything is synthesised in the browser, no audio files ----------
+   Each slide has a background bed that starts by itself, and a few one-shot effects on buttons (keys 1-6). */
+let AC=null,OUT=null,DEST=null,LIM=null,NB=null,vol=.7;
+const every=(f,ms)=>setInterval(()=>{if(AC.state==='running')f()},ms);
+function ac(){if(!AC){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;AC=new C();OUT=AC.createGain();DEST=OUT;OUT.gain.value=vol;LIM=AC.createDynamicsCompressor();LIM.threshold.value=-10;LIM.knee.value=6;LIM.ratio.value=14;LIM.attack.value=.003;LIM.release.value=.2;OUT.connect(LIM);LIM.connect(AC.destination);
+    NB=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);const d=NB.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+  return AC}
+const G=(v,to)=>{const g=AC.createGain();g.gain.value=v;g.connect(to||OUT);return g};
+const noise=to=>{const s=AC.createBufferSource();s.buffer=NB;s.loop=true;s.connect(to);s.start();return s};
+const filt=(type,f,q,to)=>{const b=AC.createBiquadFilter();b.type=type;b.frequency.value=f;b.Q.value=q||1;b.connect(to);return b};
+function tone(f,type,t,dur,g,to,f2){const o=AC.createOscillator(),e=AC.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+dur);
+  e.gain.setValueAtTime(0,t);e.gain.linearRampToValueAtTime(g,t+.012);e.gain.exponentialRampToValueAtTime(.0008,t+dur);o.connect(e);e.connect(to||DEST);o.start(t);o.stop(t+dur+.05)}
+const bell=(f,t,g,to,d)=>{tone(f,'sine',t,d||1.3,g,to);tone(f*2.76,'sine',t,(d||1.3)*.5,g*.35,to);tone(f*5.4,'sine',t,.18,g*.15,to)};
+function click(t,g,f,to){const s=AC.createBufferSource(),e=AC.createGain(),b=filt('bandpass',f,6,e);s.buffer=NB;s.connect(b);e.gain.setValueAtTime(g,t);e.gain.exponentialRampToValueAtTime(.001,t+.05);e.connect(to||DEST);s.start(t,Math.random());s.stop(t+.07)}
+/* background beds: each part returns a stop function */
+const PART={
+  engine(to,f,putt,g){g*=.15;const o=AC.createOscillator(),l=AC.createOscillator(),lg=AC.createGain(),e=G(g*.1,to),lp=filt('lowpass',420,1,e);o.type='sawtooth';o.frequency.value=f;l.frequency.value=putt;lg.gain.value=g*.07;l.connect(lg);lg.connect(e.gain);o.connect(lp);
+    const n=noise(filt('lowpass',160,1,G(g*.25,to)));o.start();l.start();return()=>{o.stop();l.stop();n.stop()}},
+  sizzle(to,g){g*=.4;const e=G(g*.25,to),n=noise(filt('highpass',3800,1,e)),id=every(()=>{e.gain.setTargetAtTime(g*(.12+Math.random()*.3),AC.currentTime,.03)},70);return()=>{clearInterval(id);n.stop()}},
+  hiss(to,g){const n=noise(filt('bandpass',1800,.6,G(g*.12,to)));return()=>n.stop()},
+  wind(to,g){const e=G(g*.2,to),b=filt('bandpass',380,.8,e),n=noise(b),id=every(()=>{b.frequency.setTargetAtTime(260+Math.random()*320,AC.currentTime,1.2);e.gain.setTargetAtTime(g*(.1+Math.random()*.2),AC.currentTime,1.2)},1500);return()=>{clearInterval(id);n.stop()}},
+  traffic(to,g){const e=G(g*.35,to),n=noise(filt('lowpass',260,1,e)),id=every(()=>{e.gain.setTargetAtTime(g*(.2+Math.random()*.35),AC.currentTime,1.5)},2200);return()=>{clearInterval(id);n.stop()}},
+  birds(to,g){const id=every(()=>{if(Math.random()<.6){const t=AC.currentTime,f=2400+Math.random()*1400,k=2+(Math.random()*3|0);for(let i=0;i<k;i++)tone(f,'sine',t+i*.11,.08,g*.12,to,f*1.35)}},1300);return()=>clearInterval(id)},
+  crickets(to,g){const id=every(()=>{const t=AC.currentTime;for(let i=0;i<4;i++)tone(4300,'sine',t+i*.055,.035,g*.07,to)},620);return()=>clearInterval(id)},
+  bubble(to,g){const id=every(()=>{if(Math.random()<.7){const f=180+Math.random()*260;tone(f,'sine',AC.currentTime,.07,g*.16,to,f*1.8)}},150);return()=>clearInterval(id)},
+  tick(to,g,ms){let k=0;const id=every(()=>{const t=AC.currentTime;click(t,g*1.2,(k++%2)?1500:2100,to);tone((k%2)?900:1200,'sine',t,.03,g*.2,to)},ms);return()=>clearInterval(id)},
+  fan(to,g){const o=AC.createOscillator();o.type='triangle';o.frequency.value=118;o.connect(G(g*.06,to));o.start();const n=noise(filt('bandpass',520,.7,G(g*.07,to)));return()=>{o.stop();n.stop()}},
+  pad(to,g,root){const lp=filt('lowpass',1100,.7,to),os=[];[1,1.26,1.5,2,2.52].forEach((m,i)=>{[-4,4].forEach(dt=>{const o=AC.createOscillator(),e=AC.createGain();o.type=i<3?'triangle':'sine';o.frequency.value=root*m;o.detune.value=dt;e.gain.value=0;e.gain.setTargetAtTime(g*.035,AC.currentTime+i*.5,1.6);o.connect(e);e.connect(lp);o.start();os.push(o)})});return()=>os.forEach(o=>o.stop())}
+};
+const BEDS=[ // first match wins
+ [/片頭卡/,'雪夜的風',[['wind',.9]]],
+ [/夜晚的街道/,'機車引擎、夜晚',[['engine',.8,96,11],['crickets',.5]]],
+ [/巷子/,'夜晚蟲鳴',[['crickets',1],['wind',.3]]],
+ [/毛胚屋|新買的禮拜堂/,'空屋的風聲',[['wind',.6]]],
+ [/客廳|新家/,'掛鐘滴答',[['tick',.25,1000]]],
+ [/現在的主堂/,'溫暖的和聲',[['pad',1,196]]],
+ [/教會外觀（傍晚）/,'和聲、蟲鳴',[['pad',.9,220],['crickets',.4]]],
+ [/教會外觀（白天）/,'鳥叫',[['birds',1],['traffic',.4]]],
+ [/早餐店・清晨/,'油鍋滋滋、清晨鳥叫',[['sizzle',1],['birds',.7],['traffic',.3]]],
+ [/早餐店・夜晚/,'夜晚蟲鳴',[['crickets',.8]]],
+ [/郵局/,'街道、鳥叫',[['traffic',1],['birds',.6]]],
+ [/禱告的光/,'安靜',[]],
+ [/教練場/,'戶外、鳥叫',[['birds',.8],['traffic',.5]]],
+ [/車窗/,'汽車引擎',[['engine',.7,72,7],['traffic',.5]]],
+ [/早期的教會空間/,'安靜',[]],
+ [/菜市場/,'滷鍋咕嘟、爐火',[['bubble',1],['hiss',.8]]],
+ [/教會廚房/,'大鍋滋滋、湯滾',[['sizzle',.9],['bubble',.8],['hiss',.5]]],
+ [/現在的主日愛餐/,'廚房聲、和聲',[['sizzle',.5],['bubble',.6],['pad',.8,196]]],
+ [/公車/,'公車引擎',[['engine',1,58,6],['traffic',.6]]],
+ [/時鐘慢慢走/,'時鐘滴答（慢）',[['tick',1,1000]]],
+ [/時鐘加快/,'時鐘滴答（快）',[['tick',1,420]]],
+ [/時鐘停下/,'安靜，然後和聲',[['pad',.7,175]]],
+ [/教會中庭/,'電風扇',[['fan',1]]],
+ [/現在的團契/,'電風扇、和聲',[['fan',.6],['pad',.9,220]]]
+];
+const bedOf=s=>BEDS.find(b=>b[0].test(s.n))||[0,'安靜',[]];
+/* one-shot effects */
+const FX={
+  ding(){const t=AC.currentTime;bell(1568,t,.5);bell(2093,t+.09,.4)},
+  ding2(){const t=AC.currentTime;[0,.16,.32].forEach((d,i)=>bell(1568*(i==2?1.26:1),t+d,.5))},
+  dong(){const t=AC.currentTime;tone(98,'sine',t,1.8,.9);tone(196,'triangle',t,1.2,.35);click(t,.5,180)},
+  dang(){const t=AC.currentTime,lp=filt('lowpass',2200,1,DEST);tone(523,'sawtooth',t,.2,.3,lp);tone(784,'sawtooth',t+.2,.5,.34,lp)},
+  chord(){const t=AC.currentTime;[523,659,784,1046].forEach((f,i)=>bell(f,t+i*.02,.3,DEST,2))},
+  up(){const t=AC.currentTime;[523,659,784,1046,1318].forEach((f,i)=>bell(f,t+i*.09,.35,DEST,.9))},
+  joy(){const t=AC.currentTime;[659,784,988,1318,1568,1318,1568].forEach((f,i)=>bell(f,t+i*.08,.3,DEST,.5))},
+  bike(){const t=AC.currentTime;[0,.14,.5,.64].forEach(d=>bell(2350,t+d,.4,DEST,.5))},
+  start(){const t=AC.currentTime,lp=filt('lowpass',500,1,DEST);for(let i=0;i<5;i++)tone(60,'sawtooth',t+i*.13,.1,.35,lp,45);tone(50,'sawtooth',t+.7,1.6,.4,lp,115);click(t+.7,.4,300)},
+  horn(){const t=AC.currentTime,lp=filt('lowpass',1800,1,DEST);[0,.45].forEach(d=>{tone(415,'square',t+d,.32,.22,lp);tone(523,'square',t+d,.32,.22,lp)})},
+  brake(){const t=AC.currentTime,e=AC.createGain(),b=filt('bandpass',3200,14,e),s=AC.createBufferSource();s.buffer=NB;s.connect(b);b.frequency.exponentialRampToValueAtTime(1300,t+1.3);e.gain.setValueAtTime(.0001,t);e.gain.linearRampToValueAtTime(.9,t+.15);e.gain.exponentialRampToValueAtTime(.001,t+1.4);e.connect(DEST);s.start(t);s.stop(t+1.5);tone(980,'sawtooth',t,1.3,.08,DEST,520)},
+  wah(){const t=AC.currentTime,lp=filt('lowpass',900,3,DEST);[466,440,415].forEach((f,i)=>tone(f,'sawtooth',t+i*.42,.4,.3,lp,f*.97));tone(392,'sawtooth',t+1.26,1.1,.32,lp,340)},
+  run(){const t=AC.currentTime;[392,440,494,523,587,659,698,784,880,988].forEach((f,i)=>tone(f,'triangle',t+i*.07,.09,.4))},
+  slide(){const t=AC.currentTime;tone(500,'sine',t,.35,.35,DEST,1500);tone(1500,'sine',t+.35,.4,.35,DEST,420)},
+  thud(){const t=AC.currentTime;tone(90,'sine',t,.25,.9,DEST,50);click(t,.6,220)},
+  abacus(){const t=AC.currentTime;let d=0;for(let i=0;i<12;i++){click(t+d,.6,2600+Math.random()*600);d+=.04+Math.random()*.05}},
+  box(){const t=AC.currentTime,e=.3,N=[[392,3],[440,1],[392,2],[330,6],[392,3],[440,1],[392,2],[330,6],[587,4],[587,2],[494,6],[523,4],[523,2],[392,6]];let d=0;N.forEach(([f,n])=>{bell(f*2,t+d,.3,DEST,Math.min(2.2,n*e+.5));d+=n*e})},
+  tense(){let k=0,ms=520,id;const d=DEST,go=()=>{if(AC.state==='running'){click(AC.currentTime,.9,(k++%2)?1700:2300,d);tone(k%2?147:139,'triangle',AC.currentTime,.12,.25,d);ms=Math.max(230,ms*.985)}id=setTimeout(go,ms)};go();return()=>clearTimeout(id)}
+};
+const CUES=[ // slide name pattern -> [label, effect]
+ [/片頭卡/,[['音樂盒〈平安夜〉','box']]],
+ [/夜晚的街道/,[['機車發動','start'],['喇叭','horn']]],
+ [/巷子/,[['「叮」看見招牌','ding']]],
+ [/毛胚屋（建商開價）/,[['低音「噹」580萬','dong']]],
+ [/大陳娜娜家的客廳/,[['急匆匆小快步','run'],['「噹噹！」價錢沒聽錯','dang'],['低音「噹」','dong']]],
+ [/毛胚屋（議價）/,[['緊張滴答 開／關','tense'],['成交和弦','chord']]],
+ [/早餐店・清晨/,[['腳踏車鈴','bike'],['車門關上','thud']]],
+ [/教練場/,[['緊張滴答 開／關','tense'],['「通過」上行音','up']]],
+ [/車窗/,[['汽車發動','start'],['喇叭','horn'],['轉彎滑音','slide']]],
+ [/早期的教會空間/,[['算盤聲','abacus'],['低音「噹」','dong'],['明亮和弦','chord']]],
+ [/菜市場/,[['明亮和弦','chord']]],
+ [/教會廚房（早期）/,[['俏皮小快步','run'],['低音「噹」不行！','dong'],['明亮和弦','chord']]],
+ [/現在的主日愛餐/,[['明亮和弦','chord']]],
+ [/公車/,[['煞車聲','brake']]],
+ [/搬家後的新家/,[['「叮」成功高中','ding'],['「叮叮叮」建國中學','ding2'],['雀躍短句','joy'],['「哇哇」很無聊','wah']]]
+];
+const cuesOf=s=>(CUES.find(c=>c[0].test(s.n))||[0,[]])[1];
+/* transport: nothing starts by itself; every sound is a track with a progress bar; changing slide stops them all */
+const DUR={ding:1.4,ding2:1.8,dong:1.9,dang:.8,chord:2.1,up:1.4,joy:1.1,bike:1.2,start:2.4,horn:.85,brake:1.5,wah:2.4,run:.85,slide:.8,thud:.35,abacus:1,box:16.2};
+const playing=new Map();
+const mmss=s=>{s=Math.max(0,s);return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0')};
+function stopTrack(k){const p=playing.get(k);if(!p)return;playing.delete(k);try{p.g.gain.setTargetAtTime(0,AC.currentTime,.05)}catch(e){}
+  setTimeout(()=>{p.stops.forEach(f=>{try{f()}catch(e){}});try{p.g.disconnect()}catch(e){}},400);
+  if(p.btn){p.btn.setAttribute('aria-pressed','false');p.btn.classList.remove('loop');p.btn.querySelector('.pb>i').style.width='0';p.btn.querySelector('.tm').textContent=''}}
+function stopAll(){[...playing.keys()].forEach(stopTrack)}
+function playTrack(k,btn){if(!ac())return;if(playing.has(k))return stopTrack(k);
+  if(AC.state!=='running'){AC.resume();setPaused(false)}
+  const g=AC.createGain();g.gain.value=1;g.connect(OUT);let stops=[],dur=Infinity;
+  if(k==='bed'){g.gain.value=0;g.gain.setTargetAtTime(1,AC.currentTime,.4);stops=bedOf(SL[cur])[2].map(([n,...a])=>PART[n](g,...a))}
+  else if(FX[k]){DEST=g;const r=FX[k]();DEST=OUT;if(typeof r==='function')stops=[r];else dur=DUR[k]||1.5}else return;
+  playing.set(k,{g,stops,dur,t0:AC.currentTime,btn});
+  if(btn){btn.setAttribute('aria-pressed','true');btn.classList.toggle('loop',dur===Infinity)}}
+function setPaused(v){$('bPause').textContent=v?'▶ 繼續聲音':'⏸ 暫停聲音';$('bPause').setAttribute('aria-pressed',String(!!v));$('sndRow').classList.toggle('paused',!!v)}
+function pauseAll(){if(!ac())return;if(AC.state==='running'){AC.suspend();setPaused(true)}else{AC.resume();setPaused(false)}}
+(function meter(){requestAnimationFrame(meter);if(!AC)return;const t=AC.currentTime;
+  playing.forEach((p,k)=>{const el=t-p.t0;if(p.dur!==Infinity&&el>=p.dur)return stopTrack(k);
+    if(p.btn){if(p.dur!==Infinity)p.btn.querySelector('.pb>i').style.width=(el/p.dur*100).toFixed(1)+'%';p.btn.querySelector('.tm').textContent=p.dur===Infinity?mmss(el):mmss(el)+' / '+mmss(p.dur)}})})();
+function soundEnter(i){const s=SL[i],B=bedOf(s),C=cuesOf(s);
+  if(AC){stopAll();if(AC.state!=='running')AC.resume()}setPaused(false);
+  const trk=(k,key,l)=>`<button class="trk" data-fx="${k}" aria-pressed="false"><span><b>${key}</b> ${l}</span><small class="tm"></small><i class="pb"><i></i></i></button>`;
+  $('sFx').innerHTML=(B[2].length?trk('bed',0,'環境音：'+B[1]):'')+C.map(([l,k],n)=>trk(k,n+1,l)).join('')||'<span class="lab">這一張沒有聲音</span>';}
+function setVol(v){vol=Math.max(0,Math.min(1,+v));store.set('xmas-vol',vol);if(AC)OUT.gain.setTargetAtTime(vol,AC.currentTime,.05)}
+
+
+
 const mine={A:$('LA'),B:$('LB'),flip:false,t:0};let theirs=null;
 function paint(T,s,instant){const inn=T.flip?T.A:T.B,out=T.flip?T.B:T.A;T.flip=!T.flip;
   inn.innerHTML=s.s('s'+(uid++)+'_');inn.className='layer on'+(s.tone?' tone-'+s.tone:'');out.classList.remove('on');
@@ -645,6 +825,7 @@ function show(i,instant){
   $('count').textContent=`${i+1} / ${SL.length}`;store.set('xmas-i',i);
   document.querySelectorAll('[data-act]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.act===s.a)));
   if(!$('sheet').hidden)drawSheet();
+  soundEnter(i);
 }
 const next=()=>show(cur+1),prev=()=>show(cur-1);
 function toast(m,ms){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,ms||5000)}
@@ -664,6 +845,8 @@ function onKey(e){if(e.metaKey||e.ctrlKey||e.altKey)return;const k=e.key;
   else if(k==='Home')show(0);else if(k==='End')show(SL.length-1);
   else if(k==='F5'||k==='f'||k==='F'){e.preventDefault();running()?0:startShow()}
   else if(k==='b'||k==='B'||k==='.')setBlack(!black);else if(k==='t'||k==='T')setFade(!fade);
+  else if(k==='s'||k==='S')pauseAll();
+  else if(/^[0-9]$/.test(k)){const b=k==='0'?$('sFx').querySelector('[data-fx="bed"]'):[...$('sFx').querySelectorAll('[data-fx]')].filter(x=>x.dataset.fx!=='bed')[+k-1];if(b)playTrack(b.dataset.fx,b)}
   else if(k==='Escape'){if(!$('sheet').hidden)sheet(false);else endShow()}}
 
 /* ---------- the show ---------- */
@@ -709,6 +892,8 @@ document.addEventListener('fullscreenchange',()=>{if(solo&&!document.fullscreenE
 addEventListener('pagehide',()=>{try{aud&&aud.close()}catch(e){}});
 
 $('bNext').onclick=next;$('bPrev').onclick=prev;$('bShow').onclick=startShow;$('bList').onclick=()=>sheet();
+$('bPause').onclick=pauseAll;$('rVol').oninput=e=>setVol(e.target.value);
+$('sFx').onclick=e=>{const b=e.target.closest('[data-fx]');if(b)playTrack(b.dataset.fx,b)};
 $('bMotion').onclick=()=>setMotion(!motion);$('bFade').onclick=()=>setFade(!fade);$('bBlack').onclick=()=>setBlack(!black);
 document.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>show(SL.findIndex(s=>s.a===+b.dataset.act)));
 $('sheet').onclick=e=>{const g=e.target.closest('[data-go]');if(g){show(+g.dataset.go);sheet(false)}else if(e.target.id==='shClose')sheet(false)};
@@ -720,6 +905,7 @@ let idleT;const wake=()=>{app.classList.remove('idle');clearTimeout(idleT);idleT
 addEventListener('mousemove',wake);addEventListener('touchstart',wake,{passive:true});wake();
 try{navigator.wakeLock&&navigator.wakeLock.request('screen').catch(()=>{})}catch(e){}
 
+vol=+store.get('xmas-vol',.7)||.7;$('rVol').value=vol;
 setFade(store.get('xmas-fade','1')!=='0');
 setMotion(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches));
 show(Math.min(SL.length-1,+store.get('xmas-i',0)||0),true);
